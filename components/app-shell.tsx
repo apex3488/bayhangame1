@@ -192,7 +192,7 @@ function ShellFrame({ children }: { children: ReactNode }) {
             {t("err_account_restricted")}
           </div>
         )}
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-28 pt-6 md:px-8 lg:pb-12">
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-6 md:px-8 lg:pb-12">
           {/* Enter-only transition: App Router swaps children before an exit animation could finish. */}
           <motion.div
             key={pathname}
@@ -204,7 +204,7 @@ function ShellFrame({ children }: { children: ReactNode }) {
           </motion.div>
         </main>
 
-        <nav className="fixed inset-x-3 bottom-3 z-30 grid grid-cols-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)]/90 p-1.5 shadow-2xl backdrop-blur-xl lg:hidden">
+        <nav className="fixed inset-x-3 bottom-[max(12px,env(safe-area-inset-bottom))] z-30 grid grid-cols-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)]/90 p-1.5 shadow-2xl backdrop-blur-xl lg:hidden">
           {MOBILE_NAV.map((href) => {
             const s = ALL_SECTIONS.find((x) => x.href === href)!;
             const Icon = s.icon;

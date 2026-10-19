@@ -33,6 +33,8 @@ body {
   background: var(--bg);
   color: var(--text);
   min-height: 100%;
+  /* Last line of defence: nothing may make a phone page scroll sideways. */
+  overflow-x: clip;
 }
 
 body {
@@ -138,5 +140,36 @@ input[type="number"] {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/*
+ * A grid without explicit columns gets an `auto` track that grows to its widest content,
+ * so one long number could push the whole page off a phone screen. Zero specificity:
+ * any grid-cols-* utility still wins.
+ */
+@layer base {
+  :where(.grid) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Swipeable rows (tabs, chips) without a visible scrollbar. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/*
+ * iOS Safari zooms the page when a field with text smaller than 16px gets focus.
+ * Unlayered, so it beats text-sm/text-xs utilities on phones only.
+ */
+@media (max-width: 639px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
   }
 }

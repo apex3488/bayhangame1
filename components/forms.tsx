@@ -54,8 +54,8 @@ export function AmountForm({
           </button>
         )}
       </div>
-      <div className="flex gap-2">
-        <div className="flex flex-1 items-center rounded-2xl border border-[var(--border)] bg-[var(--bg-2)] px-3 focus-within:border-[var(--accent)]">
+      <div className="flex flex-wrap gap-2">
+        <div className="flex min-w-[150px] flex-[1_1_150px] items-center rounded-2xl border border-[var(--border)] bg-[var(--bg-2)] px-3 focus-within:border-[var(--accent)]">
           <span className="text-sm text-[var(--muted)]">{prefix}</span>
           <input
             inputMode="decimal"
@@ -67,7 +67,7 @@ export function AmountForm({
             className="tabular w-full min-w-0 bg-transparent px-2 py-3 font-semibold outline-none"
           />
         </div>
-        <Button disabled={busy} loading={busy} variant={variant} className="shrink-0">
+        <Button disabled={busy} loading={busy} variant={variant} className="grow sm:grow-0">
           {action}
         </Button>
       </div>
@@ -83,12 +83,19 @@ export function AmountForm({
   );
 }
 
-/** Pill tabs with an animated indicator. */
+/** Pill tabs with an animated indicator. On phones they form one swipeable row instead of wrapping. */
 export function Tabs<T extends string>({ tabs, value, onChange, id }: { tabs: { id: T; label: string }[]; value: T; onChange: (v: T) => void; id: string }) {
   return (
-    <div className="mb-5 inline-flex flex-wrap gap-1 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-1">
+    <div className="no-scrollbar mb-5 flex max-w-full gap-1 overflow-x-auto rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-1 sm:inline-flex sm:flex-wrap">
       {tabs.map((tab) => (
-        <button key={tab.id} onClick={() => onChange(tab.id)} className="relative rounded-xl px-4 py-2 text-sm font-semibold">
+        <button
+          key={tab.id}
+          onClick={(e) => {
+            onChange(tab.id);
+            e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+          }}
+          className="relative shrink-0 whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold"
+        >
           {value === tab.id && (
             <motion.span layoutId={`tab-${id}`} className="absolute inset-0 rounded-xl bg-[var(--accent)]" transition={{ type: "spring", stiffness: 400, damping: 32 }} />
           )}
@@ -128,15 +135,15 @@ export function TextForm({
       className="space-y-2"
     >
       {label && <p className="text-xs text-[var(--muted)]">{label}</p>}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <input
           value={value}
           maxLength={maxLength}
           placeholder={placeholder}
           onChange={(e) => setValue(e.target.value)}
-          className="min-w-0 flex-1 rounded-2xl border border-[var(--border)] bg-[var(--bg-2)] px-4 py-3 outline-none focus:border-[var(--accent)]"
+          className="min-w-[150px] flex-[1_1_150px] rounded-2xl border border-[var(--border)] bg-[var(--bg-2)] px-4 py-3 outline-none focus:border-[var(--accent)]"
         />
-        <Button disabled={!value.trim() || busy} loading={busy} className="shrink-0">
+        <Button disabled={!value.trim() || busy} loading={busy} className="grow sm:grow-0">
           {action}
         </Button>
       </div>

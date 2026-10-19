@@ -165,7 +165,7 @@ function Frame({ role, children }: { role: AdminRole; children: ReactNode }) {
             </button>
           </div>
         </header>
-        <nav className="flex gap-1 overflow-x-auto border-b border-[var(--border)] px-3 py-2 lg:hidden">
+        <nav className="no-scrollbar flex gap-1 overflow-x-auto border-b border-[var(--border)] px-3 py-2 lg:hidden">
           {NAV.map(({ href, key }) => (
             <Link key={href} href={href} className={`shrink-0 rounded-lg px-3 py-1.5 text-xs ${active(pathname, href) ? "bg-white/10 text-white" : "text-[var(--muted)]"}`}>
               {t(key)}

@@ -133,11 +133,11 @@ export default function HomePage() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm">{r.reason}</span>
-                      <span className="text-xs text-[var(--dim)]">{new Date(r.created_at).toLocaleString()}</span>
+                      <span className="block truncate text-xs text-[var(--dim)]">{new Date(r.created_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}</span>
                     </span>
-                    <span className={`tabular text-sm font-semibold ${r.direction === "credit" ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
+                    <span className={`tabular shrink-0 text-right text-[13px] font-semibold sm:text-sm ${r.direction === "credit" ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
                       {r.direction === "credit" ? "+" : "−"}
-                      {formatUsd(Number(r.amount))}
+                      {formatUsd(Number(r.amount), Number(r.amount) >= 1000 ? 0 : 2)}
                     </span>
                   </motion.li>
                 ))}

@@ -73,7 +73,7 @@ export default function AdminDashboard() {
           </div>
         </Reveal>
         <Reveal delay={0.1} className="lg:col-span-2">
-          <div className="panel overflow-hidden">
+          <div className="panel overflow-x-auto">
             <p className="px-5 pt-5 text-sm font-semibold">{t("a_gamesWeek")}</p>
             {d.games.length === 0 ? (
               <p className="p-5 text-sm text-[var(--muted)]">{t("a_noData")}</p>

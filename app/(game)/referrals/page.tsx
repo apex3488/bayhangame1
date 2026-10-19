@@ -4,7 +4,7 @@ import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { Check, Copy, UserPlus } from "lucide-react";
 import { useGame } from "@/components/game-context";
-import { Button, PageTitle, Reveal, Skeleton, formatUsd } from "@/components/ui";
+import { Button, PageTitle, Reveal, Skeleton, formatUsd, Fit } from "@/components/ui";
 import { fetchReferrals } from "@/lib/economy";
 
 type Ref = Awaited<ReturnType<typeof fetchReferrals>>;
@@ -96,9 +96,9 @@ export default function ReferralsPage() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-[var(--bg-2)] p-3">
-      <p className="text-[11px] text-[var(--muted)]">{label}</p>
-      <p className="font-display mt-1 text-lg font-semibold tabular">{value}</p>
+    <div className="min-w-0 rounded-2xl bg-[var(--bg-2)] p-3">
+      <p className="truncate text-[11px] text-[var(--muted)]">{label}</p>
+      <Fit className="font-display mt-1 text-lg font-semibold tabular">{value}</Fit>
     </div>
   );
 }

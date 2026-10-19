@@ -6,7 +6,7 @@ import { Bomb, Gem, KeyRound } from "lucide-react";
 import { useAsk, useGame } from "@/components/game-context";
 import { useCelebrate } from "@/components/victory";
 import { GameRoom, useRound } from "@/components/game-room";
-import { Button, formatUsd } from "@/components/ui";
+import { Button, formatUsd, Fit } from "@/components/ui";
 import { minesActive, minesCashout, minesOpen, minesReveal, minesStart, newIdempotencyKey, type MinesState } from "@/lib/game";
 
 export default function MinesPage() {
@@ -216,9 +216,9 @@ export default function MinesPage() {
 
 function Info({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className="rounded-2xl bg-[var(--bg-2)] px-2 py-2.5">
-      <p className="text-[10px] uppercase tracking-wider text-[var(--muted)]">{label}</p>
-      <p className={`font-display mt-0.5 text-sm font-bold tabular md:text-base ${accent ? "text-[var(--success)]" : ""}`}>{value}</p>
+    <div className="min-w-0 rounded-2xl bg-[var(--bg-2)] px-2 py-2.5">
+      <p className="truncate text-[10px] uppercase tracking-wider text-[var(--muted)]">{label}</p>
+      <Fit className={`font-display mt-0.5 text-sm font-bold tabular md:text-base ${accent ? "text-[var(--success)]" : ""}`}>{value}</Fit>
     </div>
   );
 }

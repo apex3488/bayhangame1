@@ -95,7 +95,7 @@ function Overlay({ v, labels, onClose }: { v: Victory; labels: { win: string; me
           transition={{ duration: 2.2, delay: p.delay, ease: [0.16, 1, 0.3, 1] }}
         />
       ))}
-      <div className="relative flex flex-col items-center px-6 text-center">
+      <div className="relative flex max-w-full flex-col items-center px-4 text-center sm:px-6">
         <motion.p
           className="font-display text-[clamp(56px,13vw,180px)] font-black uppercase leading-none tracking-tight"
           style={{
@@ -111,7 +111,7 @@ function Overlay({ v, labels, onClose }: { v: Victory; labels: { win: string; me
           {mega ? labels.mega : labels.win}
         </motion.p>
         <motion.p
-          className="font-display mt-4 text-[clamp(28px,6vw,64px)] font-bold tabular text-white"
+          className="font-display mt-4 max-w-full break-all text-[clamp(20px,6.5vw,64px)] font-bold tabular text-white"
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3, type: "spring", stiffness: 200, damping: 16 }}

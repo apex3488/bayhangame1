@@ -129,8 +129,8 @@ export default function CorporationPage() {
                 <p className="mt-1 text-xs font-semibold text-[var(--accent-2)]">{t(`role_${role}`)}</p>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              <Stat label={t("treasury")} value={<Money value={Number(c.treasury)} digits={0} />} />
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <Stat className="col-span-2 sm:col-span-1" label={t("treasury")} value={<Money value={Number(c.treasury)} digits={0} />} />
               <Stat label={t("prestige")} value={String(c.prestige)} />
               <Stat label={t("corpLevel")} value={String(c.level)} />
             </div>
@@ -272,9 +272,9 @@ export default function CorporationPage() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: React.ReactNode }) {
+function Stat({ label, value, className = "" }: { label: string; value: React.ReactNode; className?: string }) {
   return (
-    <div className="rounded-2xl bg-[var(--bg-2)]/80 px-4 py-3 text-center">
+    <div className={`min-w-0 rounded-2xl bg-[var(--bg-2)]/80 px-4 py-3 text-center ${className}`}>
       <p className="text-[11px] text-[var(--muted)]">{label}</p>
       <p className="font-display mt-1 text-lg font-semibold tabular">{value}</p>
     </div>

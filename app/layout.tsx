@@ -13,6 +13,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // Lets the page extend under the iPhone notch / home indicator; insets are padded in CSS.
+  viewportFit: "cover",
   themeColor: "#05060a",
 };
 

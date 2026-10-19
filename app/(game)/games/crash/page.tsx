@@ -186,7 +186,7 @@ export default function CrashPage() {
 
   const stage = (
     <div className="py-2">
-      <div className="mb-3 flex gap-1.5 overflow-hidden">
+      <div className="mb-3 flex gap-1.5 overflow-hidden [mask-image:linear-gradient(to_right,black_85%,transparent)]">
         {history.slice(0, 14).map((h, i) => (
           <motion.span
             key={`${h.crash}-${i}`}

@@ -58,12 +58,12 @@ export default function HistoryPage() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm">{r.reason}</p>
-                  <p className="text-[11px] text-[var(--dim)]">
-                    {new Date(r.created_at).toLocaleString()} · {t(`acc_${r.account}`)}
+                  <p className="truncate text-[11px] text-[var(--dim)]">
+                    {new Date(r.created_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" })} · {t(`acc_${r.account}`)}
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className={`tabular text-sm font-semibold ${r.direction === "credit" ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
+                <div className="max-w-[55%] shrink-0 text-right">
+                  <p className={`tabular break-all text-[13px] font-semibold sm:text-sm ${r.direction === "credit" ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
                     {r.direction === "credit" ? "+" : "−"}
                     {amountText(r)}
                   </p>

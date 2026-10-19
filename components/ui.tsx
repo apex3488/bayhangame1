@@ -1,7 +1,7 @@
 "use client";
 
 import { animate, motion, useMotionValue, useReducedMotion, useTransform, AnimatePresence } from "motion/react";
-import { useEffect, useMemo, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 
 export function formatUsd(value: number, digits = 2): string {
   return new Intl.NumberFormat("en-US", {
@@ -16,11 +16,53 @@ export function formatCompact(value: number): string {
   return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value);
 }
 
-/** Number that animates from its previous value to the new one. */
+/**
+ * Shrinks the font of a single-line element until its text fits the available width.
+ * Big balances (billions) would otherwise push the layout wider than a phone screen.
+ * `finalText` is the text that will be shown once an animation ends.
+ */
+export function useFitText(ref: React.RefObject<HTMLElement | null>, finalText: string) {
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const fit = () => {
+      el.style.fontSize = "";
+      el.style.whiteSpace = "";
+      const avail = el.clientWidth;
+      if (!avail) return;
+      const current = el.textContent?.length || 1;
+      const needed = el.scrollWidth * (finalText.length / current);
+      if (needed <= avail + 1) return;
+      const base = parseFloat(getComputedStyle(el).fontSize);
+      const size = Math.max(base * 0.45, Math.floor((base * avail) / needed));
+      el.style.fontSize = `${size}px`;
+      if (size === base * 0.45) el.style.whiteSpace = "normal";
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    if (el.parentElement) ro.observe(el.parentElement);
+    return () => ro.disconnect();
+  }, [ref, finalText]);
+}
+
+/** Single-line text that shrinks its font to fit the available width. */
+export function Fit({ children, className }: { children: string; className?: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useFitText(ref, children);
+  return (
+    <span ref={ref} className={`block max-w-full whitespace-nowrap break-all ${className ?? ""}`}>
+      {children}
+    </span>
+  );
+}
+
+/** Number that animates from its previous value to the new one and shrinks to fit narrow screens. */
 export function Money({ value, className, digits = 2 }: { value: number; className?: string; digits?: number }) {
   const reduce = useReducedMotion();
   const mv = useMotionValue(value);
   const text = useTransform(mv, (v) => formatUsd(v, digits));
+  const ref = useRef<HTMLSpanElement>(null);
+  useFitText(ref, formatUsd(value, digits));
   useEffect(() => {
     if (reduce) {
       mv.set(value);
@@ -29,7 +71,12 @@ export function Money({ value, className, digits = 2 }: { value: number; classNa
     const controls = animate(mv, value, { duration: 1.1, ease: [0.16, 1, 0.3, 1] });
     return () => controls.stop();
   }, [value, mv, reduce]);
-  return <motion.span className={`tabular ${className ?? ""}`}>{text}</motion.span>;
+  const display = /(^|\s)(block|flex)(\s|$)/.test(className ?? "") ? "" : "inline-block";
+  return (
+    <motion.span ref={ref} className={`tabular max-w-full whitespace-nowrap break-all align-bottom ${display} ${className ?? ""}`}>
+      {text}
+    </motion.span>
+  );
 }
 
 type Variant = "primary" | "ghost" | "outline" | "danger" | "success";

@@ -112,7 +112,7 @@ export function ProfileHero({
             </div>
             {meta && <div className="mt-1 text-sm text-[var(--muted)]">{meta}</div>}
           </div>
-          {right}
+          {right && <div className="w-full min-w-0 sm:w-auto sm:max-w-[50%]">{right}</div>}
         </div>
         {data.bio && (
           <motion.p initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}

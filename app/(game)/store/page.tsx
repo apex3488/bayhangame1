@@ -140,7 +140,7 @@ export default function StorePage() {
                   className="relative flex h-full flex-col overflow-hidden rounded-3xl border p-4"
                   style={{ borderColor: equipped ? color : "var(--border)", background: `linear-gradient(170deg, ${color}1f, var(--surface) 55%)` }}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-1">
                     <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider" style={{ background: `${color}26`, color }}>
                       {t(`rarity_${item.rarity}`)}
                     </span>
