@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>BAYHAN GAME</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #05060a;
+        color: #e8ecf5;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+      main {
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        padding: 24px;
+        box-sizing: border-box;
+        text-align: center;
+      }
+      img {
+        width: 112px;
+        height: 112px;
+        border-radius: 26px;
+        box-shadow: 0 0 40px rgba(47, 123, 255, 0.45);
+      }
+      h1 {
+        margin: 8px 0 0;
+        font-size: 22px;
+      }
+      p {
+        margin: 0;
+        max-width: 320px;
+        color: #8b93a7;
+        font-size: 15px;
+        line-height: 1.5;
+      }
+      button {
+        margin-top: 10px;
+        border: 0;
+        border-radius: 16px;
+        padding: 14px 28px;
+        background: #2f7bff;
+        color: #fff;
+        font-size: 16px;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="icon.png" alt="BAYHAN GAME" />
+      <h1>Нет подключения</h1>
+      <p>Для игры нужен интернет. Проверьте подключение и попробуйте снова.</p>
+      <p>No internet connection. Internet yo'q.</p>
+      <button onclick="location.href = 'https://bayhangame1.vercel.app/'">Повторить</button>
+    </main>
+  </body>
+</html>

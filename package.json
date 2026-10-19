@@ -12,6 +12,9 @@
     "test:db:crash": "node scripts/db-e2e-crash.mjs"
   },
   "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.5.3",
     "@supabase/supabase-js": "^2.118.0",
     "lucide-react": "^1.59.0",
     "motion": "^14.3.0",
@@ -20,6 +23,7 @@
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.5.3",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",

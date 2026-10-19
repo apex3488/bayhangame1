@@ -8,3 +8,9 @@ out/
 .DS_Store
 *.tsbuildinfo
 .claude/settings.local.json
+
+# Android build outputs and signing keys never go to git
+dist/*.apk
+*.jks
+*.keystore
+keystore.properties
