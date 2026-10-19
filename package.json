@@ -1,0 +1,32 @@
+{
+  "name": "bayhan-game-2",
+  "version": "2.0.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "node scripts/db-migrate.mjs",
+    "test:db": "node scripts/db-e2e.mjs",
+    "test:db:admin": "node scripts/db-e2e-admin.mjs",
+    "test:db:crash": "node scripts/db-e2e-crash.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
+    "lucide-react": "^1.59.0",
+    "motion": "^14.3.0",
+    "next": "^16.4.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "pg": "^8.23.1",
+    "postcss": "^8.5.30",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3"
+  },
+  "private": true
+}

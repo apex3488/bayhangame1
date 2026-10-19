@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-manrope), system-ui, sans-serif;
+  --font-display: var(--font-unbounded), var(--font-manrope), system-ui, sans-serif;
+}
+
+:root {
+  --bg: #05060a;
+  --bg-2: #0a0c13;
+  --surface: #0f121b;
+  --surface-2: #151926;
+  --surface-3: #1c2132;
+  --border: #20263a;
+  --border-strong: #2d3550;
+  --text: #f3f5fb;
+  --muted: #8890a8;
+  --dim: #5a6178;
+  --accent: #2f7bff;
+  --accent-2: #5aa2ff;
+  /* Derived from --accent so an equipped theme recolours them too. */
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  --accent-glow: color-mix(in srgb, var(--accent) 35%, transparent);
+  --danger: #ff4d61;
+  --danger-soft: rgba(255, 77, 97, 0.14);
+  --success: #2fe0a0;
+  --success-soft: rgba(47, 224, 160, 0.14);
+  --gold: #ffc94d;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, rgba(47, 123, 255, 0.10), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(47, 123, 255, 0.06), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Surface with a hairline gradient border. */
+.panel {
+  position: relative;
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 20px;
+}
+
+.panel-glow {
+  box-shadow: 0 0 0 1px rgba(47, 123, 255, 0.12), 0 20px 60px -20px rgba(47, 123, 255, 0.35);
+}
+
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.shine {
+  position: relative;
+  overflow: hidden;
+}
+.shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.08) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: shine 3.5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes shine {
+  60%, 100% { transform: translateX(100%); }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2), var(--surface-3), var(--surface-2));
+  background-size: 200% 100%;
+  animation: skeleton 1.4s ease-in-out infinite;
+  border-radius: 12px;
+}
+@keyframes skeleton {
+  to { background-position: -200% 0; }
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Thin dark scrollbars instead of the bright OS default. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
