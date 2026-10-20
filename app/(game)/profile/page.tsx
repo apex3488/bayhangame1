@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
-import { Pencil } from "lucide-react";
+import { LogOut, Pencil } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { getSupabase } from "@/lib/supabase";
+import { LANGS } from "@/lib/i18n";
 import { useGame } from "@/components/game-context";
 import { useAction } from "@/components/use-action";
 import { CosmeticPreview, RARITY_COLOR, cosmeticName } from "@/components/cosmetic-view";
@@ -27,7 +30,12 @@ import {
 type Profile = Awaited<ReturnType<typeof fetchProfile>>;
 
 export default function ProfilePage() {
-  const { t, snapshot, loadout, refreshLoadout, refresh } = useGame();
+  const { t, snapshot, loadout, refreshLoadout, refresh, lang, setLang } = useGame();
+  const router = useRouter();
+  async function logout() {
+    await getSupabase().auth.signOut();
+    router.replace("/login");
+  }
   const { busy, run } = useAction();
   const [p, setP] = useState<Profile | null>(null);
   const [vip, setVip] = useState<{ level: number; active: boolean; multiplier: number; ends_at?: string } | null>(null);
@@ -174,6 +182,28 @@ export default function ProfilePage() {
       </div>
 
       <Reveal delay={0.1}>
+        <div className="panel mt-5 flex flex-wrap items-center justify-between gap-3 p-5">
+          <p className="text-sm font-semibold">{t("settings")}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex rounded-xl border border-[var(--border)] bg-[var(--bg-2)] p-1">
+              {LANGS.map((l) => (
+                <button
+                  key={l}
+                  onClick={() => setLang(l)}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${lang === l ? "bg-[var(--accent)] text-white" : "text-[var(--muted)] hover:text-white"}`}
+                >
+                  {l.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            <Button variant="ghost" className="py-2 text-xs" onClick={logout}>
+              <LogOut size={14} /> {t("logout")}
+            </Button>
+          </div>
+        </div>
+      </Reveal>
+
+      <Reveal delay={0.12}>
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
           {[
             ["/quests", "quests"],

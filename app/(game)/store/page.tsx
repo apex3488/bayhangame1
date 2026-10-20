@@ -6,6 +6,8 @@ import { Check, Gift, Lock } from "lucide-react";
 import { useGame } from "@/components/game-context";
 import { useAction } from "@/components/use-action";
 import { CosmeticPreview, RARITY_COLOR, cosmeticName } from "@/components/cosmetic-view";
+import { CosmeticArt } from "@/components/cosmetic-art";
+import { mediaUrl } from "@/lib/profile";
 import { Tabs } from "@/components/forms";
 import { Burst, Button, PageTitle, Reveal, Skeleton, formatCompact, formatUsd } from "@/components/ui";
 import {
@@ -25,7 +27,8 @@ type Tab = "featured" | "elite" | CosmeticItem["category"] | "collections";
 const TABS: Tab[] = ["elite", "featured", "frame", "badge", "theme", "name_style", "title", "effect", "box", "collections"];
 
 export default function StorePage() {
-  const { t, loadout, refreshLoadout } = useGame();
+  const { t, loadout, refreshLoadout, snapshot } = useGame();
+  const avatarSrc = snapshot ? mediaUrl(snapshot.user_id, "avatar", snapshot.avatar_version) : null;
   const { busy, run } = useAction();
   const [tab, setTab] = useState<Tab>("elite");
   const [items, setItems] = useState<CosmeticItem[] | null>(null);
@@ -150,14 +153,8 @@ export default function StorePage() {
                       </span>
                     )}
                   </div>
-                  <div className="my-5 grid h-20 place-items-center">
-                    {item.category === "box" ? (
-                      <motion.div animate={{ y: [0, -5, 0], rotate: [0, -3, 3, 0] }} transition={{ duration: 3, repeat: Infinity }} style={{ color }}>
-                        <Gift size={56} strokeWidth={1.4} />
-                      </motion.div>
-                    ) : (
-                      <CosmeticPreview item={item} />
-                    )}
+                  <div className="my-3 grid h-32 place-items-center">
+                    <CosmeticArt item={item} size={84} avatarSrc={avatarSrc} playerName={snapshot?.game_name} />
                   </div>
                   <p className="font-display text-sm font-semibold">{cosmeticName(item.code)}</p>
                   <p className="mb-3 text-xs text-[var(--muted)]">{t(`cat_${item.category}`)}</p>
@@ -220,8 +217,8 @@ export default function StorePage() {
                 <span className="rounded-full px-2.5 py-1 text-[11px] font-bold uppercase" style={{ background: `${RARITY_COLOR[opened.item.rarity]}26`, color: RARITY_COLOR[opened.item.rarity] }}>
                   {t(`rarity_${opened.item.rarity}`)}
                 </span>
-                <div className="my-6 grid h-24 place-items-center">
-                  <CosmeticPreview item={opened.item} size={84} />
+                <div className="my-6 grid h-36 place-items-center">
+                  <CosmeticArt item={opened.item} size={96} avatarSrc={avatarSrc} playerName={snapshot?.game_name} />
                 </div>
                 <p className="font-display text-xl font-semibold">{cosmeticName(opened.item.code)}</p>
                 <p className="text-sm text-[var(--muted)]">{t(`cat_${opened.item.category}`)}</p>

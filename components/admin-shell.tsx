@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { ArrowLeft, BadgePercent, Crown, Gauge, LogOut, ScrollText, Settings2, ShieldAlert, Sparkles, Users } from "lucide-react";
+import { ArrowLeft, BadgePercent, Crown, Gauge, LogOut, Megaphone, Newspaper, ScrollText, Settings2, ShieldAlert, Sparkles, Users } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
 import { adminMe, adminSessionStart, type AdminRole } from "@/lib/admin";
 import { LANGS, type Lang } from "@/lib/i18n";
@@ -18,6 +18,8 @@ const NAV = [
   { href: "/admin/promos", key: "a_promos", icon: BadgePercent },
   { href: "/admin/events", key: "a_events", icon: Sparkles },
   { href: "/admin/vip", key: "a_vip", icon: Crown },
+  { href: "/admin/news", key: "a_news", icon: Newspaper },
+  { href: "/admin/broadcast", key: "a_broadcast", icon: Megaphone },
   { href: "/admin/audit", key: "a_audit", icon: ScrollText },
 ];
 

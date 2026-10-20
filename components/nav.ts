@@ -13,6 +13,7 @@ import {
   Home,
   Landmark,
   LayoutGrid,
+  Newspaper,
   Package,
   Pickaxe,
   Send,
@@ -41,6 +42,7 @@ export const GROUPS: { key: string; items: Section[] }[] = [
       { href: "/city", key: "city", icon: LayoutGrid, hue: "#5aa2ff" },
       { href: "/work", key: "work", icon: Briefcase, hue: "#38bdf8" },
       { href: "/games", key: "games", icon: Gamepad2, hue: "#a855f7" },
+      { href: "/news", key: "news", icon: Newspaper, hue: "#e879f9" },
     ],
   },
   {

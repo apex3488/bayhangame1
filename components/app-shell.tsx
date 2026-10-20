@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { LogOut } from "lucide-react";
+import { LogOut, ShieldCheck } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
 import { LANGS, type Lang } from "@/lib/i18n";
 import { GameProvider, useGame } from "./game-context";
@@ -12,6 +12,8 @@ import { ALL_SECTIONS, GROUPS, MOBILE_NAV, isActive } from "./nav";
 import { Money } from "./ui";
 import { Avatar, StyledName } from "./cosmetic-view";
 import { mediaUrl } from "@/lib/profile";
+import { adminMe } from "@/lib/admin";
+import { NotificationBell } from "./notifications";
 
 /** Requires a Supabase session; redirects to /login otherwise. Real checks happen in RPCs. */
 export function AppShell({ children }: { children: ReactNode }) {
@@ -68,6 +70,11 @@ function ShellFrame({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { t, lang, setLang, snapshot, loadout } = useGame();
+  // The admin entry point is shown to the owner only; the server re-checks the role on every admin call.
+  const [isOwner, setIsOwner] = useState(false);
+  useEffect(() => {
+    adminMe().then((r) => setIsOwner(r.role === "owner"), () => setIsOwner(false));
+  }, []);
 
   async function logout() {
     await getSupabase().auth.signOut();
@@ -158,18 +165,19 @@ function ShellFrame({ children }: { children: ReactNode }) {
           <p className="hidden text-sm font-semibold text-[var(--muted)] md:block">
             {t(pathname.startsWith("/players/") ? "leaderboard" : (ALL_SECTIONS.find((s) => isActive(pathname, s.href) && s.href !== "/")?.key ?? "home"))}
           </p>
-          <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
             {snapshot && (
-              <Link href="/bank" className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5">
-                <span className="h-2 w-2 rounded-full bg-[var(--success)] shadow-[0_0_10px_var(--success)]" />
+              <Link href="/bank" className="flex min-w-0 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5">
+                <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--success)] shadow-[0_0_10px_var(--success)]" />
                 <Money value={Number(snapshot.cash)} className="text-sm font-semibold" />
               </Link>
             )}
+            {/* On phones the language switch and logout live on the profile page to keep the header uncluttered. */}
             <select
               aria-label="Language"
               value={lang}
               onChange={(e) => setLang(e.target.value as Lang)}
-              className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-2 py-2 text-xs font-semibold"
+              className="hidden shrink-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-2 py-2 text-xs font-semibold sm:block"
             >
               {LANGS.map((l) => (
                 <option key={l} value={l}>
@@ -177,10 +185,24 @@ function ShellFrame({ children }: { children: ReactNode }) {
                 </option>
               ))}
             </select>
+            <div className="shrink-0">
+              <NotificationBell />
+            </div>
+            {isOwner && (
+              <Link
+                href="/admin"
+                aria-label={t("adminPanel")}
+                title={t("adminPanel")}
+                className="grid h-9 shrink-0 place-items-center gap-1.5 rounded-xl border border-[#ffc94d]/40 bg-[#ffc94d]/10 px-2.5 text-[#ffc94d] transition-colors hover:bg-[#ffc94d]/20 sm:flex sm:px-3"
+              >
+                <ShieldCheck size={16} />
+                <span className="hidden text-xs font-semibold sm:inline">{t("adminPanel")}</span>
+              </Link>
+            )}
             <button
               onClick={logout}
               aria-label={t("logout")}
-              className="grid h-9 w-9 place-items-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] transition-colors hover:text-white"
+              className="hidden h-9 w-9 shrink-0 place-items-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] transition-colors hover:text-white sm:grid"
             >
               <LogOut size={16} />
             </button>

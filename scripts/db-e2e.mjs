@@ -55,6 +55,10 @@ async function asOwner(sql, params = []) {
 const snapshot = async (uid) => (await asPlayer(uid, "select get_my_snapshot() s")).rows[0].s;
 
 await c.query("begin");
+// The owner tunes limits and fees in the admin panel; these tests assert the engine against
+// fixed reference values, so pin them inside this (rolled back) transaction.
+await c.query("update game_settings set max_bet = 500000 where game = 'slots'");
+await c.query("update economy_settings set value = 0 where key = 'transfer_fee_percent'");
 try {
   // --- Registration and starting capital ---------------------------------
   const alice = await makeUser("e2e_alice", "E2E Alice");

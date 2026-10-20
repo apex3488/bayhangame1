@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Gauge, Star, Users, Zap } from "lucide-react";
 import { useAsk, useGame } from "./game-context";
 import { useAction } from "./use-action";
-import { AssetArt } from "./asset-art";
+import { AssetArt, HAS_PICTURE } from "./asset-art";
 import { Button, Money, PageTitle, Reveal, Skeleton, formatCompact, formatUsd } from "./ui";
 import {
   assetBuy,
@@ -131,7 +131,7 @@ export function AssetsView({ kind, titleKey, subtitleKey, nameKey }: { kind: Exc
                     return (
                       <motion.div key={item.code} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
                         className="panel panel-glow overflow-hidden">
-                        <div className="relative h-36 bg-gradient-to-b from-[var(--accent-soft)] to-transparent">
+                        <div className={`group relative ${HAS_PICTURE(kind) ? "aspect-[16/10]" : "h-36"} bg-gradient-to-b from-[var(--accent-soft)] to-transparent`}>
                           <AssetArt kind={kind} code={item.code} owned />
                           <div className="absolute left-4 top-3 flex gap-0.5">
                             {Array.from({ length: max }, (_, i) => (
@@ -226,7 +226,7 @@ export function AssetsView({ kind, titleKey, subtitleKey, nameKey }: { kind: Exc
                 {forSale.map((item, i) => (
                   <Reveal key={item.code} delay={i * 0.04}>
                     <motion.div whileHover={{ y: -4 }} className="panel group overflow-hidden">
-                      <div className="h-32 bg-gradient-to-b from-[var(--surface-3)] to-transparent transition-colors group-hover:from-[var(--accent-soft)]">
+                      <div className={`relative ${HAS_PICTURE(kind) ? "aspect-[16/10]" : "h-32"} bg-gradient-to-b from-[var(--surface-3)] to-transparent transition-colors group-hover:from-[var(--accent-soft)]`}>
                         <AssetArt kind={kind} code={item.code} />
                       </div>
                       <div className="space-y-3 p-5">

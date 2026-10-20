@@ -223,6 +223,7 @@ export async function fetchGameHistory(game: GameId, limit = 12): Promise<GameRo
 }
 
 const KNOWN_ERRORS = [
+  "player_not_found", // before "not_found": codes are matched as substrings
   "insufficient_funds",
   "cooldown_active",
   "level_too_low",
@@ -295,6 +296,9 @@ const KNOWN_ERRORS = [
   "no_custom_background",
   "image_invalid",
   "image_too_big",
+  "invalid_link",
+  "invalid_text",
+  "invalid_image",
 ] as const;
 
 /** Maps database errors raised by RAISE EXCEPTION to message keys. */

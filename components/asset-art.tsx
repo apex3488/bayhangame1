@@ -1,8 +1,10 @@
 "use client";
 
 import { motion } from "motion/react";
+import { useState, type ReactNode } from "react";
 import { BedDouble, Coffee, Cpu, Droplets, Factory, Fuel, Landmark, Music, Rocket, UtensilsCrossed, type LucideIcon } from "lucide-react";
 import type { AssetKind } from "@/lib/economy";
+import { CAR_PHOTOS, type PhotoCredit } from "@/lib/car-photos";
 
 const CAR_COLORS: Record<string, [string, string]> = {
   sedan: ["#64748b", "#334155"],
@@ -41,11 +43,42 @@ const BUSINESS: Record<string, { icon: LucideIcon; hue: string }> = {
 
 const REALTY_TIER: Record<string, number> = { studio: 1, apartment: 2, townhouse: 3, villa: 4, penthouse: 5, mansion: 6, island: 7, skyscraper: 8, mega_tower: 9 };
 
-/** Illustration for a catalog item: skyline for real estate, side profile for cars, animated sign for businesses. */
+/**
+ * Picture of a catalog item: real photos for cars (Wikimedia Commons, credited on the image),
+ * painted illustrations for real estate, an animated sign for businesses.
+ * Falls back to the vector drawing when an item has no picture yet.
+ */
 export function AssetArt({ kind, code, owned }: { kind: AssetKind; code: string; owned?: boolean }) {
-  if (kind === "car") return <CarArt code={code} />;
   if (kind === "business") return <BusinessArt code={code} owned={owned} />;
-  return <RealtyArt code={code} />;
+  if (kind === "car") return <Picture src={`/cars/${code}.webp`} credit={CAR_PHOTOS[code]} fallback={<CarArt code={code} />} />;
+  return <Picture src={`/realty/${code}.webp`} fallback={<RealtyArt code={code} />} />;
+}
+
+/** Kinds whose picture is a full-bleed image (cards give them a 16:10 frame). */
+export const HAS_PICTURE = (kind: AssetKind) => kind === "car" || kind === "realty";
+
+function Picture({ src, credit, fallback }: { src: string; credit?: PhotoCredit; fallback: ReactNode }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <div className="absolute inset-0">{fallback}</div>;
+  return (
+    <div className="absolute inset-0 overflow-hidden">
+      {/* eslint-disable-next-line @next/next/no-img-element -- static asset, already sized 1200x750 WebP */}
+      <img src={src} alt="" loading="lazy" onError={() => setFailed(true)} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/10" />
+      {credit && (
+        <a
+          href={credit.source}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="absolute bottom-1.5 right-2 max-w-[70%] truncate rounded bg-black/40 px-1.5 py-0.5 text-[9px] text-white/75 backdrop-blur-sm hover:text-white"
+          title={`${credit.author} · ${credit.license} · Wikimedia Commons`}
+        >
+          © {credit.author} · {credit.license}
+        </a>
+      )}
+    </div>
+  );
 }
 
 function RealtyArt({ code }: { code: string }) {
