@@ -1,5 +1,6 @@
 "use client";
 
+import { BigWins } from "@/components/big-wins";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
@@ -36,6 +37,7 @@ export default function HomePage() {
 
   return (
     <div className="space-y-5">
+      <BigWins />
       <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
         <Reveal>
           <section className="panel panel-glow relative overflow-hidden p-6 md:p-8">

@@ -84,6 +84,10 @@ try {
   await c.query("insert into game_secrets (key, code_hash) values ('crash_reveal', _sha256_hex('0000')) on conflict (key) do update set code_hash = excluded.code_hash");
   if (flying.r?.status === "active") {
     await rig(s5.r.round_id, 0, 7.77);
+    // Since 0021 the code works for the owner only.
+    const nv = await as(p, "select crash_reveal($1, '0000') r", [s5.r.round_id]);
+    check("correct code from a non-owner is refused", nv.r?.status === "wrong_code" && nv.r.crash === undefined, JSON.stringify(nv));
+    await c.query("insert into admin_roles (user_id, role) values ($1, 'owner') on conflict do nothing", [p]);
     const rv = await as(p, "select crash_reveal($1, '0000') r", [s5.r.round_id]);
     check("secret code shows the crash point of the active round", rv.r?.status === "ok" && Number(rv.r.crash) === 7.77, JSON.stringify(rv));
     const wrong = await as(p, "select crash_reveal($1, '1234') r", [s5.r.round_id]);

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
-import { LogOut, Pencil } from "lucide-react";
+import { LogOut, Pencil, Volume2, VolumeX } from "lucide-react";
+import { play, setSoundEnabled, soundEnabled } from "@/lib/sound";
 import { useRouter } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { LANGS } from "@/lib/i18n";
@@ -32,6 +33,8 @@ type Profile = Awaited<ReturnType<typeof fetchProfile>>;
 export default function ProfilePage() {
   const { t, snapshot, loadout, refreshLoadout, refresh, lang, setLang } = useGame();
   const router = useRouter();
+  const [sound, setSound] = useState(true);
+  useEffect(() => setSound(soundEnabled()), []);
   async function logout() {
     await getSupabase().auth.signOut();
     router.replace("/login");
@@ -196,6 +199,9 @@ export default function ProfilePage() {
                 </button>
               ))}
             </div>
+            <Button variant="ghost" className="py-2 text-xs" onClick={() => { const on = !sound; setSoundEnabled(on); setSound(on); if (on) play("coin"); }}>
+              {sound ? <Volume2 size={14} /> : <VolumeX size={14} />} {sound ? t("soundOn") : t("soundOff")}
+            </Button>
             <Button variant="ghost" className="py-2 text-xs" onClick={logout}>
               <LogOut size={14} /> {t("logout")}
             </Button>

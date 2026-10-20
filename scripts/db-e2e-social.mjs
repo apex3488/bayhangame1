@@ -149,6 +149,24 @@ try {
   check("deleting news removes its notifications", !(await inbox(bob)).items.some((x) => x.kind === "news" && x.params.news_id === pub.r.id));
   const modDel = await as(mod, "select admin_delete_news($1)", [quiet.r.id]);
   check("moderators cannot delete news", failed(modDel, "forbidden"), modDel.error);
+
+  // --- big wins feed (0022) ---------------------------------------------------
+  const anonFeed = await anonCall("select big_wins()");
+  check("anonymous cannot read the big wins feed", anonFeed.includes("permission denied"), anonFeed);
+  const mk = async (uid, mult, revealed) => {
+    const id = (await c.query(
+      `insert into game_rounds (user_id, game, bet, multiplier, payout, status, choice, result, idempotency_key, settled_at)
+       values ($1, 'mines', 1000, $2::numeric, 1000 * $2::numeric, 'settled', '{}', '{}', $3, now()) returning id`, [uid, mult, key()])).rows[0].id;
+    if (revealed) await c.query("insert into audit_logs (actor_id, action, target_type, target_id, payload) values ($1, 'mines_secret_reveal', 'game_round', $2, '{}')", [uid, id]);
+    return id;
+  };
+  const honest = await mk(alice, 12, false);
+  const cheat = await mk(bob, 50, true);
+  const small = await mk(alice, 1.5, false);
+  const feed = (await r1(bob, "select big_wins(30) r")).r ?? [];
+  check("feed shows an honest big win with player name", feed.some((w) => w.id === honest && w.game_name === "Soc Alice" && Number(w.multiplier) === 12), JSON.stringify(feed.slice(0, 2)));
+  check("feed hides wins made with a secret code", !feed.some((w) => w.id === cheat));
+  check("feed hides small wins (under ×3)", !feed.some((w) => w.id === small));
 } finally {
   await c.query("rollback");
   await c.end();

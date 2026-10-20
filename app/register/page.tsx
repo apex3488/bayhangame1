@@ -83,6 +83,12 @@ export default function RegisterPage() {
         <Button disabled={busy} loading={busy} className="w-full py-4">
           {t(lang, "submit")}
         </Button>
+        <p className="text-center text-[11px] leading-relaxed text-[var(--dim)]">
+          {t(lang, "agreeRules")}{" "}
+          <Link href="/rules" className="text-[var(--accent-2)] hover:underline">
+            {t(lang, "rulesLink")}
+          </Link>
+        </p>
       </form>
       <p className="mt-6 text-sm text-[var(--muted)]">
         {t(lang, "haveAccount")}{" "}

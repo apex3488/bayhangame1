@@ -35,6 +35,17 @@ export default function HelpPage() {
           );
         })}
       </div>
+      <div className="panel mt-5 flex flex-wrap items-center justify-between gap-3 p-5 text-sm">
+        <span className="text-[var(--muted)]">{t("rulesLink")} · t.me/bayhan_studio</span>
+        <div className="flex gap-2">
+          <a href="/rules" className="rounded-xl border border-[var(--border)] px-4 py-2 font-semibold hover:border-[var(--border-strong)]">
+            {t("rulesLink")}
+          </a>
+          <a href="https://t.me/bayhan_studio" target="_blank" rel="noopener noreferrer" className="rounded-xl bg-[#2aabee] px-4 py-2 font-semibold text-white">
+            Telegram
+          </a>
+        </div>
+      </div>
     </div>
   );
 }

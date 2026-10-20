@@ -1,5 +1,6 @@
 "use client";
 
+import { play } from "@/lib/sound";
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { formatUsd } from "./ui";
@@ -14,7 +15,10 @@ const Ctx = createContext<(v: Victory) => void>(() => {});
 /** Full-screen "ПОБЕДА" celebration; `celebrate()` is available everywhere inside the provider. */
 export function VictoryProvider({ children, labels }: { children: ReactNode; labels: { win: string; mega: string; tap: string } }) {
   const [v, setV] = useState<(Victory & { id: number }) | null>(null);
-  const celebrate = useCallback((x: Victory) => setV({ ...x, id: Date.now() }), []);
+  const celebrate = useCallback((x: Victory) => {
+    play((x.multiplier ?? 0) >= 10 ? "bigwin" : "win");
+    setV({ ...x, id: Date.now() });
+  }, []);
 
   useEffect(() => {
     if (!v) return;

@@ -7,6 +7,7 @@ import { ArrowDownLeft, Bell, Building2, CheckCheck, Gift, Heart, Megaphone, New
 import { useGame } from "./game-context";
 import { formatUsd } from "./ui";
 import { fetchNotifications, fetchUnread, markRead, type GameNotification } from "@/lib/social";
+import { play } from "@/lib/sound";
 
 const ICON = {
   broadcast: { icon: Megaphone, color: "#2f7bff" },
@@ -76,7 +77,10 @@ export function NotificationBell() {
       if (prevUnread.current !== null && n > prevUnread.current) {
         const r = await load();
         const fresh = r?.items.find((x) => !x.read);
-        if (fresh) toast(notificationText(fresh, t).title, "info");
+        if (fresh) {
+          toast(notificationText(fresh, t).title, "info");
+          play("notify");
+        }
       }
       prevUnread.current = n;
       setUnread(n);

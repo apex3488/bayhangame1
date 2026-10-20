@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import { Bomb, ChartCandlestick, Cherry, CircleDot, Crosshair, Dices, Disc3, Goal, Rocket, Spade, TrendingUp, type LucideIcon } from "lucide-react";
 import { useGame } from "@/components/game-context";
 import { PageTitle, Reveal } from "@/components/ui";
+import { BigWins } from "@/components/big-wins";
 import type { GameId } from "@/lib/game";
 
 const GAMES: { id: GameId; icon: LucideIcon; from: string; to: string; tag: string }[] = [
@@ -26,6 +27,7 @@ export default function GamesHub() {
   return (
     <div>
       <PageTitle title={t("gamesTitle")} subtitle={t("gamesSubtitle")} />
+      <BigWins />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-4">
         {GAMES.map((g, i) => {
           const Icon = g.icon;

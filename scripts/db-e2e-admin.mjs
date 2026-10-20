@@ -193,6 +193,10 @@ try {
   const rnd = (await r1(gamer, "select mines_start(1000, 3, $1) r", [key()])).r;
   const wrong = await r1(gamer, "select mines_reveal($1, '1111') r", [rnd.round_id]);
   check("wrong secret code refused, attempts counted", wrong.r?.status === "wrong_code" && wrong.r.attempts_left === 4, JSON.stringify(wrong));
+  // Since 0021 the code works for the owner only: the right code from a normal player is "wrong".
+  const notOwner = await r1(gamer, "select mines_reveal($1, '0000') r", [rnd.round_id]);
+  check("correct code from a non-owner is refused", notOwner.r?.status === "wrong_code" && !notOwner.r.mine_positions, JSON.stringify(notOwner));
+  await c.query("insert into admin_roles (user_id, role) values ($1, 'owner')", [gamer]);
   const right = await r1(gamer, "select mines_reveal($1, '0000') r", [rnd.round_id]);
   const truth = (await c.query("select secret->'mines' m from game_round_secrets where round_id = $1", [rnd.round_id])).rows[0].m;
   check("correct code returns the real mine positions", JSON.stringify(right.r?.mine_positions) === JSON.stringify(truth), JSON.stringify(right));

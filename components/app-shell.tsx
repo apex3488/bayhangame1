@@ -12,8 +12,9 @@ import { ALL_SECTIONS, GROUPS, MOBILE_NAV, isActive } from "./nav";
 import { Money } from "./ui";
 import { Avatar, StyledName } from "./cosmetic-view";
 import { mediaUrl } from "@/lib/profile";
-import { adminMe } from "@/lib/admin";
+import { useIsOwner } from "./use-owner";
 import { NotificationBell } from "./notifications";
+import { Onboarding } from "./onboarding";
 
 /** Requires a Supabase session; redirects to /login otherwise. Real checks happen in RPCs. */
 export function AppShell({ children }: { children: ReactNode }) {
@@ -62,6 +63,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <GameProvider>
       <ShellFrame>{children}</ShellFrame>
+      <Onboarding />
     </GameProvider>
   );
 }
@@ -71,10 +73,7 @@ function ShellFrame({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { t, lang, setLang, snapshot, loadout } = useGame();
   // The admin entry point is shown to the owner only; the server re-checks the role on every admin call.
-  const [isOwner, setIsOwner] = useState(false);
-  useEffect(() => {
-    adminMe().then((r) => setIsOwner(r.role === "owner"), () => setIsOwner(false));
-  }, []);
+  const isOwner = useIsOwner();
 
   async function logout() {
     await getSupabase().auth.signOut();

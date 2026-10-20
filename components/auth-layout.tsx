@@ -69,7 +69,12 @@ export function AuthLayout({
               ))}
             </div>
           </div>
-          <p className="text-xs text-[var(--dim)]">© BAYHAN GAME 2.0</p>
+          <p className="text-xs text-[var(--dim)]">
+            © BAYHAN GAME 2.0 ·{" "}
+            <a href="/rules" className="hover:text-white">
+              Правила
+            </a>
+          </p>
         </div>
       </div>
 

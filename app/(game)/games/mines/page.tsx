@@ -1,4 +1,5 @@
 "use client";
+import { useIsOwner } from "@/components/use-owner";
 
 import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
@@ -11,6 +12,7 @@ import { minesActive, minesCashout, minesOpen, minesReveal, minesStart, newIdemp
 
 export default function MinesPage() {
   const { t, refresh, toast, toastError } = useGame();
+  const isOwner = useIsOwner(); // secret code is owner-only (server enforces it too)
   const round = useRound("mines");
   const [state, setState] = useState<MinesState | null>(null);
   // Mine positions shown by the secret code, for the round they belong to.
@@ -186,15 +188,17 @@ export default function MinesPage() {
 
   const action = active ? (
     <div className="flex gap-2">
-    <Button
-      variant="ghost"
-      onClick={enterSecret}
-      aria-label={t("secretCode")}
-      title={t("secretCode")}
-      className="shrink-0 px-4 py-4"
-    >
-      <KeyRound size={18} />
-    </Button>
+    {isOwner && (
+      <Button
+        variant="ghost"
+        onClick={enterSecret}
+        aria-label={t("secretCode")}
+        title={t("secretCode")}
+        className="shrink-0 px-4 py-4"
+      >
+        <KeyRound size={18} />
+      </Button>
+    )}
     <Button
       variant="success"
       onClick={cashout}

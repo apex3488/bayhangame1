@@ -1,4 +1,5 @@
 "use client";
+import { useIsOwner } from "@/components/use-owner";
 
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -25,6 +26,7 @@ const multAt = (k: number, seconds: number) => Math.floor(100 * Math.exp(k * Mat
 
 export default function CrashPage() {
   const { t, refresh, toast, toastError } = useGame();
+  const isOwner = useIsOwner(); // secret code is owner-only (server enforces it too)
   const ask = useAsk();
   const celebrate = useCelebrate();
   const round = useRound("crash");
@@ -285,9 +287,11 @@ export default function CrashPage() {
 
   const action = flying ? (
     <div className="flex gap-2">
-      <Button variant="ghost" onClick={enterSecret} aria-label={t("secretCode")} title={t("secretCode")} className="shrink-0 px-4 py-4">
-        <KeyRound size={18} />
-      </Button>
+      {isOwner && (
+        <Button variant="ghost" onClick={enterSecret} aria-label={t("secretCode")} title={t("secretCode")} className="shrink-0 px-4 py-4">
+          <KeyRound size={18} />
+        </Button>
+      )}
       <Button variant="success" onClick={cashout} className="w-full py-4 text-base">
         {t("cashout")} · {formatUsd(Number(state?.bet ?? 0) * live)}
       </Button>
