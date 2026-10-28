@@ -4,17 +4,7 @@
 import {
   BOT_USERNAME, config, ensurePlayer, GameError, linkedUser, MINI_APP_URL, money, rpc, SITE_URL, tg, type TgUser,
 } from "../_shared/telegram.ts";
-
-const BTN = {
-  play: "🎮 Играть",
-  profile: "👤 Профиль",
-  balance: "💰 Баланс",
-  daily: "🎁 Ежедневная награда",
-  top: "🏆 Рейтинг",
-  tasks: "📋 Задания",
-  invite: "👥 Пригласить друга",
-  help: "ℹ️ Помощь",
-};
+import { BTN, parseCommand } from "../_shared/bot-commands.ts";
 
 const MENU = {
   keyboard: [
@@ -142,9 +132,7 @@ async function requireLinked(chat: number, u: TgUser) {
 }
 
 async function onCommand(chat: number, u: TgUser, text: string, updateId: number) {
-  const [cmdRaw, ...rest] = text.trim().split(/\s+/);
-  const cmd = cmdRaw.replace(new RegExp(`@${BOT_USERNAME}$`, "i"), "").toLowerCase();
-  const arg = rest.join(" ");
+  const { cmd, arg } = parseCommand(text, BOT_USERNAME);
 
   switch (cmd) {
     case "/start": {
@@ -158,13 +146,10 @@ async function onCommand(chat: number, u: TgUser, text: string, updateId: number
       return send(chat, await profileText(u.id), playButton());
     }
     case "/play":
-    case BTN.play.toLowerCase():
       return send(chat, "Игра открывается прямо в Telegram 👇", playButton("🎮 Открыть BAYHAN GAME"));
     case "/help":
-    case BTN.help.toLowerCase():
       return send(chat, HELP, MENU);
     case "/top":
-    case BTN.top.toLowerCase():
       return send(chat, await topText(), playButton());
   }
 
@@ -176,15 +161,7 @@ async function onCommand(chat: number, u: TgUser, text: string, updateId: number
     "/invite": async () => send(chat, await inviteText(u.id)),
     "/admin": () => adminStats(chat, u),
   };
-  const alias: Record<string, string> = {
-    [BTN.profile.toLowerCase()]: "/profile",
-    [BTN.balance.toLowerCase()]: "/balance",
-    [BTN.daily.toLowerCase()]: "/daily",
-    [BTN.tasks.toLowerCase()]: "/tasks",
-    [BTN.invite.toLowerCase()]: "/invite",
-  };
-  const key = alias[text.trim().toLowerCase()] ?? cmd;
-  const handler = linkedOnly[key];
+  const handler = linkedOnly[cmd];
   if (!handler) return send(chat, "Не знаю такой команды 🤔 Выберите действие в меню ниже или нажмите /help.", MENU);
   if (!(await requireLinked(chat, u))) return;
   return handler();
@@ -262,7 +239,9 @@ Deno.serve(async (req) => {
     else if (update.message) await send(chat, "Я понимаю только команды и кнопки меню 🙂", MENU);
   } catch (e) {
     const code = e instanceof GameError ? (e.message.match(/[a-z_]{4,}/)?.[0] ?? "") : "";
-    if (!(e instanceof GameError)) console.error("bot update failed:", e instanceof Error ? e.message : "unknown");
+    // Only the error text: no tokens, no message bodies.
+    if (e instanceof GameError) console.warn("bot game error:", e.message);
+    else console.error("bot update failed:", e instanceof Error ? e.message : "unknown");
     await send(chat, ERRORS[code] ?? "⚠️ Сервер игры временно недоступен. Попробуйте ещё раз через минуту.", MENU);
   }
   return new Response("ok");

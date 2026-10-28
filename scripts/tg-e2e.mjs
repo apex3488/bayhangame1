@@ -7,6 +7,7 @@ import fs from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { connect } from "./db-env.mjs";
 import { serverNow, signInitData } from "./tg-initdata.mjs";
+import { BTN, parseCommand } from "../supabase/functions/_shared/bot-commands.ts";
 
 const env = (k) => process.env[k] ?? fs.readFileSync(".env.local", "utf8").match(new RegExp(`^${k}=(.*)$`, "m"))?.[1]?.trim();
 const URL_ = env("NEXT_PUBLIC_SUPABASE_URL");
@@ -74,6 +75,12 @@ const asService = async (sql, p = []) => {
 };
 
 try {
+  // ------------------------------------------------ bot menu buttons ----
+  const expected = { play: "/play", profile: "/profile", balance: "/balance", daily: "/daily", top: "/top", tasks: "/tasks", invite: "/invite", help: "/help" };
+  for (const [k, label] of Object.entries(BTN)) check(`menu button "${label}" -> ${expected[k]}`, parseCommand(label, "BayhanGame2_bot").cmd === expected[k]);
+  check("/top@BayhanGame2_bot is the /top command", parseCommand("/top@BayhanGame2_bot", "BayhanGame2_bot").cmd === "/top");
+  check("/start keeps its payload", parseCommand("/start link_ABC", "BayhanGame2_bot").arg === "link_ABC");
+
   // ------------------------------------------------ 4. initData verification ----
   const A = tgUser(1, { username: "tgtest_a" });
   check("health: function answers CORS preflight", (await fetch(AUTH, { method: "OPTIONS", headers: { origin: "https://bayhangame1.vercel.app" } })).status === 204);

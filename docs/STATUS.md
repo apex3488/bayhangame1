@@ -36,7 +36,7 @@
 - Mini App — та же игра (`/tg`), вход по проверенному сервером initData, регистрация или привязка существующего аккаунта.
 - Один аккаунт везде: привязка в Профиле одноразовой ссылкой, пароль для браузера у аккаунтов из Telegram.
 - Сервер: Supabase Edge Functions `telegram-auth`, `telegram-bot`; секреты в Vault. Подробно — [TELEGRAM.md](TELEGRAM.md).
-- Тесты: `npm run test:tg` — 44/44.
+- Тесты: `npm run test:tg` — 54/54.
 
 ## Админ-панель (/admin)
 
