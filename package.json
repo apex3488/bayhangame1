@@ -10,7 +10,10 @@
     "test:db": "node scripts/db-e2e.mjs",
     "test:db:admin": "node scripts/db-e2e-admin.mjs",
     "test:db:crash": "node scripts/db-e2e-crash.mjs",
-    "test:db:social": "node scripts/db-e2e-social.mjs"
+    "test:db:social": "node scripts/db-e2e-social.mjs",
+    "test:tg": "node scripts/tg-e2e.mjs",
+    "telegram:setup": "node scripts/telegram-setup.mjs",
+    "db:backup": "node scripts/db-backup.mjs"
   },
   "dependencies": {
     "@capacitor/android": "8.5.3",

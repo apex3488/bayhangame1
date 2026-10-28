@@ -60,6 +60,20 @@ export function GameProvider({ children }: { children: ReactNode }) {
     refreshLoadout();
   }, [refresh, refreshLoadout]);
 
+  // The same account can be played in the browser, the Mini App and the bot at once: whenever the
+  // game comes back to the foreground, re-read the server state instead of showing a stale balance.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [refresh]);
+
   const t = useCallback((key: string) => translate(lang, key), [lang]);
   const toastError = useCallback(
     (e: unknown) => toast(errorText(lang, errorKey(e instanceof Error ? e.message : String(e))), "error"),

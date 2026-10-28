@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope, Unbounded } from "next/font/google";
 import "./globals.css";
+import { TelegramBridge } from "@/components/telegram-bridge";
 
 const manrope = Manrope({ subsets: ["latin", "cyrillic"], variable: "--font-manrope", display: "swap" });
 const unbounded = Unbounded({ subsets: ["latin", "cyrillic"], variable: "--font-unbounded", display: "swap" });
@@ -40,7 +41,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ru" className={`${manrope.variable} ${unbounded.variable}`}>
-      <body>{children}</body>
+      <body>
+        <TelegramBridge />
+        {children}
+      </body>
     </html>
   );
 }

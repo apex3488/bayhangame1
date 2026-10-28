@@ -13,6 +13,7 @@ import { useAction } from "@/components/use-action";
 import { CosmeticPreview, RARITY_COLOR, cosmeticName } from "@/components/cosmetic-view";
 import { ProfileHero } from "@/components/profile-hero";
 import { AppearanceEditor } from "@/components/appearance-editor";
+import { PasswordCard, TelegramCard } from "@/components/telegram-card";
 import { uploadMedia, type MediaKind } from "@/lib/profile";
 import { TextForm } from "@/components/forms";
 import { Button, Money, PageTitle, Reveal, Skeleton, formatCompact } from "@/components/ui";
@@ -206,6 +207,13 @@ export default function ProfilePage() {
               <LogOut size={14} /> {t("logout")}
             </Button>
           </div>
+        </div>
+      </Reveal>
+
+      <Reveal delay={0.11}>
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+          <TelegramCard />
+          <PasswordCard login={p?.login} />
         </div>
       </Reveal>
 

@@ -1,4 +1,5 @@
 import { enSocial, ruSocial, uzSocial } from "./i18n-social";
+import { enTelegram, ruTelegram, uzTelegram } from "./i18n-telegram";
 import { enExtra, ruExtra, uzExtra } from "./i18n-extra";
 import { enAdmin, ruAdmin, uzAdmin } from "./i18n-admin";
 import { enBrands, ruBrands, uzBrands } from "./i18n-brands";
@@ -490,9 +491,9 @@ const uz: Dict = {
 };
 
 export const DICTS: Record<Lang, Dict> = {
-  ru: { ...ru, ...ruExtra, ...ruAdmin, ...ruBrands, ...ruSocial },
-  en: { ...en, ...enExtra, ...enAdmin, ...enBrands, ...enSocial },
-  uz: { ...uz, ...uzExtra, ...uzAdmin, ...uzBrands, ...uzSocial },
+  ru: { ...ru, ...ruExtra, ...ruAdmin, ...ruBrands, ...ruSocial, ...ruTelegram },
+  en: { ...en, ...enExtra, ...enAdmin, ...enBrands, ...enSocial, ...enTelegram },
+  uz: { ...uz, ...uzExtra, ...uzAdmin, ...uzBrands, ...uzSocial, ...uzTelegram },
 };
 
 export function t(lang: Lang, key: string): string {

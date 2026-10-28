@@ -6,6 +6,7 @@ import { motion } from "motion/react";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { LogOut, ShieldCheck } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
+import { isTelegramLaunch } from "@/lib/telegram";
 import { LANGS, type Lang } from "@/lib/i18n";
 import { GameProvider, useGame } from "./game-context";
 import { ALL_SECTIONS, GROUPS, MOBILE_NAV, isActive } from "./nav";
@@ -28,11 +29,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       const supabase = getSupabase();
       supabase.auth.getSession().then(({ data }) => {
         if (cancelled) return;
-        if (!data.session) router.replace("/login");
+        if (!data.session) router.replace(signInPath());
         else setState("ready");
       });
       const sub = supabase.auth.onAuthStateChange((_event, session) => {
-        if (!session) router.replace("/login");
+        if (!session) router.replace(signInPath());
       });
       unsubscribe = () => sub.data.subscription.unsubscribe();
     } catch {
@@ -68,6 +69,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
+/** Inside Telegram the player signs in with Telegram, not with a password. */
+const signInPath = () => (isTelegramLaunch() ? "/tg" : "/login");
+
 function ShellFrame({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -77,7 +81,7 @@ function ShellFrame({ children }: { children: ReactNode }) {
 
   async function logout() {
     await getSupabase().auth.signOut();
-    router.replace("/login");
+    router.replace(signInPath());
   }
 
   const xpPer = snapshot?.xp_per_level || 500;
@@ -157,7 +161,7 @@ function ShellFrame({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg)]/75 px-4 py-3 backdrop-blur-xl md:px-8">
+        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg)]/75 px-4 pb-3 pt-[calc(0.75rem+var(--tg-top,0px))] backdrop-blur-xl md:px-8">
           <Link href="/" className="flex items-center gap-2 lg:hidden">
             <div className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--accent)] font-display text-xs font-bold">B</div>
           </Link>
@@ -225,7 +229,7 @@ function ShellFrame({ children }: { children: ReactNode }) {
           </motion.div>
         </main>
 
-        <nav className="fixed inset-x-3 bottom-[max(12px,env(safe-area-inset-bottom))] z-30 grid grid-cols-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)]/90 p-1.5 shadow-2xl backdrop-blur-xl lg:hidden">
+        <nav className="fixed inset-x-3 bottom-[max(12px,env(safe-area-inset-bottom),var(--tg-bottom,0px))] z-30 grid grid-cols-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)]/90 p-1.5 shadow-2xl backdrop-blur-xl lg:hidden">
           {MOBILE_NAV.map((href) => {
             const s = ALL_SECTIONS.find((x) => x.href === href)!;
             const Icon = s.icon;

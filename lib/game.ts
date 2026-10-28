@@ -299,9 +299,18 @@ const KNOWN_ERRORS = [
   "invalid_link",
   "invalid_text",
   "invalid_image",
+  "telegram_already_linked",
+  "account_already_linked",
+  "link_code_invalid",
+  "invalid_init_data",
+  "rate_limited",
+  "registration_failed",
+  "invalid_game_name",
 ] as const;
 
 /** Maps database errors raised by RAISE EXCEPTION to message keys. */
 export function errorKey(message: string): string {
+  // fetch() rejects with a TypeError when the game server cannot be reached.
+  if (/failed to fetch|networkerror|load failed|network request failed/i.test(message)) return "network";
   return KNOWN_ERRORS.find((k) => message.includes(k)) ?? "unknown";
 }
