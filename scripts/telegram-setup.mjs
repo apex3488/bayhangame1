@@ -30,15 +30,23 @@ async function api(method, body) {
 await api("setWebhook", {
   url: `${supabaseUrl}/functions/v1/telegram-bot`,
   secret_token: secret,
-  allowed_updates: ["message", "callback_query"],
+  allowed_updates: ["message", "callback_query", "my_chat_member"],
   drop_pending_updates: false,
   max_connections: 40,
 });
-const commands = [
+const toCommands = (list) => list.map(([command, description]) => ({ command, description }));
+const privateCommands = toCommands([
   ["start", "Главное меню"], ["play", "Открыть игру"], ["profile", "Профиль"], ["balance", "Баланс"],
-  ["daily", "Ежедневная награда"], ["top", "Рейтинг игроков"], ["tasks", "Задания"], ["invite", "Пригласить друга"], ["help", "Помощь"],
-].map(([command, description]) => ({ command, description }));
-await api("setMyCommands", { commands });
+  ["daily", "Ежедневный бонус"], ["work", "Работа"], ["top", "Рейтинг игроков"], ["games", "Игры на ставки"],
+  ["tasks", "Задания"], ["invite", "Пригласить друга"], ["help", "Все команды"],
+]);
+const groupCommands = toCommands([
+  ["balance", "Баланс"], ["profile", "Профиль"], ["daily", "Ежедневный бонус"], ["work", "Работа"], ["top", "Рейтинг"],
+  ["games", "Игры на ставки"], ["mafia", "Мафия"], ["spy", "Шпион"], ["crocodile", "Крокодил"], ["help", "Все команды"],
+]);
+await api("setMyCommands", { commands: privateCommands, scope: { type: "all_private_chats" } });
+await api("setMyCommands", { commands: groupCommands, scope: { type: "all_group_chats" } });
+await api("setMyCommands", { commands: privateCommands });
 await api("setChatMenuButton", { menu_button: { type: "web_app", text: "Играть", web_app: { url: `${site}/tg` } } });
 await api("setMyName", { name: "BAYHAN GAME" });
 await api("setMyShortDescription", { short_description: "Экономическая игра BAYHAN GAME: бизнес, машины, острова, Crash и Мины. Один аккаунт в Telegram и в браузере." });

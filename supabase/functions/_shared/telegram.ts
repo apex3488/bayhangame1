@@ -51,7 +51,7 @@ export interface TgUser {
 }
 
 const enc = new TextEncoder();
-async function hmac(key: Uint8Array, msg: string): Promise<Uint8Array> {
+async function hmac(key: Uint8Array<ArrayBuffer>, msg: string): Promise<Uint8Array<ArrayBuffer>> {
   const k = await crypto.subtle.importKey("raw", key, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   return new Uint8Array(await crypto.subtle.sign("HMAC", k, enc.encode(msg)));
 }

@@ -1,10 +1,13 @@
-// BAYHAN GAME bot (@BayhanGame2_bot), Telegram webhook.
-// Every number it shows and every reward it gives comes from public.tg_call(), i.e. the same
-// SQL functions the browser game and the Mini App use. No balances live in the bot.
-import {
-  BOT_USERNAME, config, ensurePlayer, GameError, linkedUser, MINI_APP_URL, money, rpc, SITE_URL, tg, type TgUser,
-} from "../_shared/telegram.ts";
-import { BTN, parseCommand } from "../_shared/bot-commands.ts";
+// BAYHAN GAME bot (@BayhanGame2_bot): Telegram webhook for private chats and groups.
+// Every number it shows and every reward it gives comes from the game's SQL functions (through
+// public.tg_rpc), i.e. the same rules as the browser game and the Mini App. No balances live here.
+import { BTN, parseChat, parseCommand, type ChatCommand } from "../_shared/bot-commands.ts";
+import { BOT_USERNAME, config, ensurePlayer, GameError, linkedUser, MINI_APP_URL, rpc, SITE_URL, tg, type TgUser } from "../_shared/telegram.ts";
+import { type Ctx, errorText, esc, forgetLinked, mention, reply, send } from "./ctx.ts";
+import * as economy from "./economy.ts";
+import * as games from "./games.ts";
+import * as party from "./party-io.ts";
+import * as adminPanel from "./admin.ts";
 
 const MENU = {
   keyboard: [
@@ -18,196 +21,200 @@ const MENU = {
   is_persistent: true,
 };
 const playButton = (text = BTN.play) => ({ inline_keyboard: [[{ text, web_app: { url: MINI_APP_URL } }]] });
-
-const ERRORS: Record<string, string> = {
-  daily_already_claimed: "Награда уже получена. Следующая — через 24 часа после прошлой.",
-  account_restricted: "Аккаунт ограничен администрацией.",
-  link_code_invalid: "Код привязки неверный или устарел. Получите новый в игре: Профиль → Telegram.",
-  telegram_already_linked: "Этот Telegram уже привязан к другому аккаунту BAYHAN GAME.",
-  account_already_linked: "К этому аккаунту уже привязан другой Telegram.",
-  registration_failed: "Не удалось создать аккаунт. Попробуйте ещё раз через минуту.",
+/** Private-chat menu buttons → chat commands. */
+const MENU_TO_CHAT: Record<string, string> = {
+  "/profile": "profile", "/balance": "balance", "/daily": "daily", "/top": "top", "/tasks": "quests", "/invite": "invite", "/help": "help", "/play": "play",
 };
 
-const esc = (s: unknown) => String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
-const send = (chat: number, text: string, markup?: unknown) =>
-  tg("sendMessage", { chat_id: chat, text, parse_mode: "HTML", link_preview_options: { is_disabled: true }, ...(markup ? { reply_markup: markup } : {}) });
+const HELP =
+  `ℹ️ <b>BAYHAN GAME — команды</b>\nПишите прямо в чат, можно без «/». Сумма: 1000, 5к, 2.5кк, все.\n\n` +
+  `💰 «б» баланс · «профиль» · «бонус» · «топ» · «топ чата»\n🛠 «работа» · «работа курьер»\n` +
+  `🏦 «банк» · «положить 10к» · «снять все» · «вклад 100к 30» · «btc» · «купить btc 10к»\n` +
+  `💸 «перевод 1к» (ответом на сообщение) · «перевод Ник 1к»\n` +
+  `🛒 «магазин» · «машины» · «недвижимость» · «бизнесы» · «роскошь» · «купить Частный остров» · «продать …» · «улучшить …» · «собрать» · «имущество»\n` +
+  `⛏ «добыча» · «ресурсы» · «продать дерево все» · 🎁 «кейсы» · «кейс Золотой» · 🎟 «промо КОД»\n` +
+  `📋 «задания» · «забрать» · 👥 «пригласить» · ✏️ «ник Имя» · 👑 «вип» · 🎉 «события» · 📜 «история»\n` +
+  `🏢 «корпа» · «корпа создать Имя» · «топ корп» · 💍 «брак» (ответом) · «развод»\n\n` +
+  `${games.GAMES_HELP}\n\n${party.HELP}\n\n` +
+  `⚙️ «настройки» — админ чата включает/выключает ставки и мини-игры.\n🌐 Игра в браузере: ${SITE_URL}`;
 
-async function call<T = any>(tgId: number, fn: string, arg: string | null = null): Promise<T> {
-  return await rpc<T>("tg_call", { p_tg: tgId, p_fn: fn, p_arg: arg });
-}
-
-// ------------------------------------------------------------- screens ----
-async function welcomeNew(chat: number, u: TgUser, ref: string) {
+// ------------------------------------------------------------- private ----
+async function welcomeNew(chat: number, ref: string) {
   await send(
     chat,
     `<b>Добро пожаловать в BAYHAN GAME!</b> 👑\n\nЭкономическая игра: работай, открывай бизнес, покупай машины и острова, ` +
-      `играй в Crash и Мины и поднимайся в рейтинге. Только игровая валюта.\n\n` +
+      `играй в Crash и Мины, Мафию и Шпиона в чатах с друзьями. Только игровая валюта.\n\n` +
       `Уже играете в браузере? Привяжите аккаунт — прогресс и баланс будут общими.`,
-    {
-      inline_keyboard: [
-        [{ text: "🆕 Создать аккаунт", callback_data: ref ? `reg:${ref}` : "reg" }],
-        [{ text: "🔗 У меня уже есть аккаунт", callback_data: "howlink" }],
-        [{ text: BTN.play, web_app: { url: MINI_APP_URL } }],
-      ],
-    },
+    [
+      [{ text: "🆕 Создать аккаунт", callback_data: ref ? `reg:${ref}` : "reg" }],
+      [{ text: "🔗 У меня уже есть аккаунт", callback_data: "howlink" }],
+      [{ text: BTN.play, web_app: { url: MINI_APP_URL } }],
+      [{ text: "➕ Добавить бота в чат", url: `https://t.me/${BOT_USERNAME}?startgroup=play` }],
+    ],
   );
 }
-
-async function profileText(tgId: number) {
-  const p = await call(tgId, "profile");
-  const s = p.snapshot;
-  return (
-    `👤 <b>${esc(p.game_name)}</b>  ·  ID ${p.public_id}\n` +
-    `⭐ Уровень ${p.level}  ·  ${Number(p.xp) % Number(s.xp_per_level || 500)}/${s.xp_per_level} XP\n\n` +
-    `💼 Капитал: <b>${money(s.total_capital)}</b>\n` +
-    `💵 Кошелёк: ${money(s.cash)}\n🏦 Банк: ${money(s.bank)}\n₿ BTC: ${Number(s.btc)}\n` +
-    `🏠 Активы: ${money(s.assets_value)}\n\n` +
-    `🎲 Игр: ${p.stats.games_played}  ·  🛠 Смен: ${p.stats.shifts}\n` +
-    `🔑 Логин для браузера: <code>${esc(p.login)}</code>`
-  );
-}
-
-async function balanceText(tgId: number) {
-  const s = await call(tgId, "snapshot");
-  return (
-    `💰 <b>Баланс</b>\n\n💵 Кошелёк: <b>${money(s.cash)}</b>\n🏦 Банк: ${money(s.bank)}\n` +
-    `₿ BTC: ${Number(s.btc)} (≈ ${money(Number(s.btc) * Number(s.btc_rate))})\n🏠 Активы: ${money(s.assets_value)}\n\n` +
-    `💼 Общий капитал: <b>${money(s.total_capital)}</b>\n📈 Доход сегодня: ${money(s.income_today)}`
-  );
-}
-
-const QUEST_NAMES: Record<string, string> = {
-  play_5_games: "Сыграть 5 игр",
-  win_3_games: "Выиграть 3 игры",
-  mine_10: "Добыть ресурсы 10 раз",
-  invite_1: "Пригласить друга",
-  earn_10000: "Заработать $10,000",
-};
-
-async function tasksText(tgId: number) {
-  const list = (await call<any[]>(tgId, "quests")) ?? [];
-  if (!list.length) return "📋 Заданий сейчас нет.";
-  const rows = list.map((q) => {
-    const done = Number(q.progress) >= Number(q.target);
-    const mark = q.claimed ? "✅" : done ? "🎁" : "▫️";
-    return `${mark} ${esc(QUEST_NAMES[q.code] ?? q.code)} — ${Math.min(Number(q.progress), Number(q.target))}/${Number(q.target)} · ${money(q.reward_usd)}`;
-  });
-  return `📋 <b>Задания</b>\n\n${rows.join("\n")}\n\n🎁 — готово, заберите награду в игре.`;
-}
-
-async function topText() {
-  const list = await call<any[]>(0, "leaderboard", "10");
-  const medal = ["🥇", "🥈", "🥉"];
-  const rows = list.map((r) => `${medal[r.rank - 1] ?? `${r.rank}.`} ${esc(r.game_name)} — ${money(r.total_capital)}`);
-  return `🏆 <b>Рейтинг по капиталу</b>\n\n${rows.join("\n") || "Пока пусто."}`;
-}
-
-async function inviteText(tgId: number) {
-  const r = await call(tgId, "referrals");
-  return (
-    `👥 <b>Пригласить друга</b>\n\nДруг получит стартовый капитал, а вы — <b>${money(r.reward)}</b> после его 3 рабочих смен.\n\n` +
-    `Ссылка в Telegram:\nhttps://t.me/${BOT_USERNAME}?start=ref_${r.code}\n\nСсылка на браузерную версию:\n${SITE_URL}/register?ref=${r.code}\n\n` +
-    `Приглашено: ${r.invited} · засчитано: ${r.qualified} · заработано: ${money(r.earned)}`
-  );
-}
-
-const HELP =
-  `ℹ️ <b>BAYHAN GAME — помощь</b>\n\n` +
-  `${BTN.play} — открыть игру прямо в Telegram\n${BTN.profile}, ${BTN.balance} — ваши данные из игры\n` +
-  `${BTN.daily} — раз в 24 часа, серия увеличивает награду\n${BTN.top} — лучшие игроки\n` +
-  `${BTN.tasks}, ${BTN.invite}\n\n` +
-  `Один аккаунт везде: в боте, в Mini App и в браузере (${SITE_URL}).\n` +
-  `Пароль для входа в браузере задаётся в игре: Профиль → Настройки.\n\n` +
-  `Команды: /start /play /profile /balance /daily /top /tasks /invite /help`;
 
 const HOW_LINK =
-  `🔗 <b>Привязка аккаунта из браузера</b>\n\n1. Откройте игру в браузере: ${SITE_URL}\n2. Профиль → Настройки → «Привязать Telegram»\n` +
+  `🔗 <b>Привязка аккаунта из браузера</b>\n\n1. Откройте игру в браузере: ${SITE_URL}\n2. Профиль → «Привязать Telegram»\n` +
   `3. Нажмите «Открыть бота» — привязка произойдёт сама.\n\nИли откройте ${BTN.play}, выберите «У меня есть аккаунт» и войдите по логину и паролю.`;
 
-// ------------------------------------------------------------- handlers ----
-async function requireLinked(chat: number, u: TgUser) {
-  if (await linkedUser(u.id)) return true;
-  await welcomeNew(chat, u, "");
-  return false;
+async function start(ctx: Ctx, arg: string) {
+  if (!ctx.isPrivate) return reply(ctx, HELP);
+  if (arg.startsWith("link_")) {
+    const r = await rpc<any>("tg_consume_link_code", { p_code: arg.slice(5), p_tg: ctx.from.id, p_username: ctx.from.username ?? null, p_first_name: ctx.from.first_name ?? null });
+    forgetLinked(ctx.from.id);
+    await send(ctx.chat.id, `✅ Аккаунт <b>${esc(r.game_name)}</b> привязан к Telegram. Баланс и прогресс общие с браузером.`, MENU);
+    return economy.profile(ctx);
+  }
+  if (!(await linkedUser(ctx.from.id))) return welcomeNew(ctx.chat.id, arg.startsWith("ref_") ? arg.slice(4) : "");
+  if (arg === "play") return send(ctx.chat.id, "Игра открывается прямо в Telegram 👇", playButton("🎮 Открыть BAYHAN GAME"));
+  await send(ctx.chat.id, `👑 <b>С возвращением в BAYHAN GAME!</b>\nНапишите «помощь», чтобы увидеть все команды.`, MENU);
+  return economy.profile(ctx);
 }
 
-async function onCommand(chat: number, u: TgUser, text: string, updateId: number) {
-  const { cmd, arg } = parseCommand(text, BOT_USERNAME);
-
-  switch (cmd) {
-    case "/start": {
-      if (arg.startsWith("link_")) {
-        const r = await rpc<any>("tg_consume_link_code", { p_code: arg.slice(5), p_tg: u.id, p_username: u.username ?? null, p_first_name: u.first_name ?? null });
-        await send(chat, `✅ Аккаунт <b>${esc(r.game_name)}</b> привязан к Telegram. Баланс и прогресс общие с браузером.`, MENU);
-        return send(chat, await profileText(u.id), playButton());
-      }
-      if (!(await linkedUser(u.id))) return welcomeNew(chat, u, arg.startsWith("ref_") ? arg.slice(4) : "");
-      await send(chat, `👑 <b>С возвращением в BAYHAN GAME!</b>`, MENU);
-      return send(chat, await profileText(u.id), playButton());
-    }
-    case "/play":
-      return send(chat, "Игра открывается прямо в Telegram 👇", playButton("🎮 Открыть BAYHAN GAME"));
-    case "/help":
-      return send(chat, HELP, MENU);
-    case "/top":
-      return send(chat, await topText(), playButton());
+// --------------------------------------------------------------- router ----
+async function onCommand(ctx: Ctx, c: ChatCommand) {
+  switch (c.cmd) {
+    case "start": return start(ctx, c.args[0] ?? "");
+    case "help": return reply(ctx, HELP);
+    case "games": return reply(ctx, games.GAMES_HELP);
+    case "play":
+      if (await adminPanel.command(ctx, c)) return;
+      return ctx.isPrivate ? send(ctx.chat.id, "Игра открывается прямо в Telegram 👇", playButton("🎮 Открыть BAYHAN GAME"))
+        : reply(ctx, "🎮 Полная версия игры — в личке бота:", [[{ text: "🎮 Открыть", url: `https://t.me/${BOT_USERNAME}?start=play` }]]);
+    case "link": return reply(ctx, HOW_LINK);
+    case "casino": case "spin": case "slots": case "dice": case "basketball": case "darts": case "bowling": case "up": case "down": case "trade":
+      return games.bet(ctx, c);
+    case "mines": return games.mines(ctx, c);
+    case "crash": return games.crash(ctx, c);
+    case "duel": return games.duel(ctx, c);
+    case "mafia": return party.start(ctx, "mafia");
+    case "spy": return party.start(ctx, "spy");
+    case "crocodile": return party.start(ctx, "crocodile");
+    case "partystop": return party.stop(ctx);
+    case "chatsettings": return chatSettings(ctx);
+    case "admin": case "a_give": case "a_take": case "a_ban": case "a_unban": case "a_player": case "a_broadcast": case "a_stats":
+      if (await adminPanel.command(ctx, c)) return;
+      return ctx.isPrivate ? reply(ctx, "Не знаю такой команды 🤔 Напишите «помощь».") : undefined;
+    case "vip": case "promo":
+      if (await adminPanel.command(ctx, c)) return;
   }
+  if (await economy.handle(ctx, c)) return;
+  if (ctx.isPrivate) return reply(ctx, "Не знаю такой команды 🤔 Напишите «помощь».");
+}
 
-  const linkedOnly: Record<string, () => Promise<unknown>> = {
-    "/profile": async () => send(chat, await profileText(u.id), playButton()),
-    "/balance": async () => send(chat, await balanceText(u.id), playButton()),
-    "/daily": () => claimDaily(chat, u, `tg-msg-${updateId}`),
-    "/tasks": async () => send(chat, await tasksText(u.id), playButton()),
-    "/invite": async () => send(chat, await inviteText(u.id)),
-    "/admin": () => adminStats(chat, u),
+async function isChatAdmin(chatId: number, userId: number) {
+  const r = await tg("getChatMember", { chat_id: chatId, user_id: userId });
+  return ["creator", "administrator"].includes(r?.result?.status);
+}
+
+function settingsView(s: { casino: boolean; party: boolean }) {
+  return {
+    text: `⚙️ <b>Настройки чата</b>\n\n🎰 Игры на ставки: ${s.casino ? "включены" : "выключены"}\n🎭 Мини-игры и дуэли: ${s.party ? "включены" : "выключены"}`,
+    kb: [[{ text: `🎰 Ставки: ${s.casino ? "выкл." : "вкл."}`, callback_data: `cs:casino:${s.casino ? 0 : 1}` }],
+      [{ text: `🎭 Мини-игры: ${s.party ? "выкл." : "вкл."}`, callback_data: `cs:party:${s.party ? 0 : 1}` }]],
   };
-  const handler = linkedOnly[cmd];
-  if (!handler) return send(chat, "Не знаю такой команды 🤔 Выберите действие в меню ниже или нажмите /help.", MENU);
-  if (!(await requireLinked(chat, u))) return;
-  return handler();
 }
 
-async function claimDaily(chat: number, u: TgUser, key: string) {
-  const st = await call(u.id, "daily_status");
-  if (!st.can_claim) {
-    const next = new Date(st.next_at);
-    const h = Math.max(0, Math.ceil((next.getTime() - Date.now()) / 3_600_000));
-    return send(chat, `⏳ Награда уже получена. Следующая примерно через ${h} ч.`, MENU);
+async function chatSettings(ctx: Ctx) {
+  if (ctx.isPrivate) return reply(ctx, "Настройки есть у групповых чатов.");
+  if (!(await isChatAdmin(ctx.chat.id, ctx.from.id))) return reply(ctx, "Настройки меняют только админы чата.");
+  const v = settingsView(ctx.settings);
+  return reply(ctx, v.text, v.kb);
+}
+
+async function onMessage(update: any, msg: any) {
+  const from: TgUser = msg.from;
+  const isPrivate = msg.chat.type === "private";
+  const settings = isPrivate ? { casino: true, party: true }
+    : await rpc<any>("tg_chat_seen", { p_chat: msg.chat.id, p_title: msg.chat.title ?? "", p_type: msg.chat.type, p_tg: from.id });
+  const ctx: Ctx = {
+    chat: msg.chat, from, messageId: msg.message_id, updateId: update.update_id, isPrivate,
+    replyTo: msg.reply_to_message?.from, settings: { casino: settings?.casino !== false, party: settings?.party !== false },
+  };
+  const text: string = msg.text ?? "";
+  if (!text) {
+    if (isPrivate) await reply(ctx, "Я понимаю команды и кнопки меню 🙂 Напишите «помощь».");
+    return;
   }
-  const r = await call(u.id, "claim_daily", key);
-  if (r.status === "duplicate") return;
-  return send(chat, `🎁 <b>+${money(r.reward)}</b> — ежедневная награда, день ${r.streak}!\nЗаходите завтра, серия увеличит награду.`, MENU);
-}
-
-async function adminStats(chat: number, u: TgUser) {
-  try {
-    const s = await call(u.id, "admin_stats");
-    return send(
-      chat,
-      `🛡 <b>Админ · ${esc(s.role)}</b>\n\nИгроков: ${s.players} (сегодня +${s.players_today})\nПривязали Telegram: ${s.telegram_linked}\n` +
-        `Активны в Telegram за 24 ч: ${s.active_24h}\nИгровых раундов сегодня: ${s.rounds_today}\n\nПанель: ${SITE_URL}/admin`,
-    );
-  } catch (e) {
-    // For everyone else the command does not exist.
-    if (e instanceof GameError && e.message.includes("forbidden")) {
-      return send(chat, "Не знаю такой команды 🤔 Выберите действие в меню ниже или нажмите /help.", MENU);
-    }
-    throw e;
+  // Private menu buttons ("🏆 Рейтинг") and /start with a payload.
+  if (isPrivate) {
+    const pc = parseCommand(text, BOT_USERNAME);
+    if (pc.cmd === "/start") return start(ctx, pc.arg);
+    if (MENU_TO_CHAT[pc.cmd] && !text.startsWith("/")) return onCommand(ctx, { cmd: MENU_TO_CHAT[pc.cmd], args: [], rest: "" });
   }
+  const c = parseChat(text, BOT_USERNAME);
+  if (c) return onCommand(ctx, c);
+  if (!isPrivate) {
+    await party.text(ctx, text);
+    return;
+  }
+  return reply(ctx, "Не знаю такой команды 🤔 Напишите «помощь».", MENU);
 }
 
-async function onCallback(q: any, updateId: number) {
-  const u: TgUser = q.from;
-  const chat = q.message?.chat?.id ?? u.id;
+async function onCallback(update: any, q: any) {
+  const from: TgUser = q.from;
+  const chat = q.message?.chat ?? { id: from.id, type: "private" };
+  const messageId: number = q.message?.message_id;
   const data: string = q.data ?? "";
-  await tg("answerCallbackQuery", { callback_query_id: q.id });
-  if (data === "reg" || data.startsWith("reg:")) {
-    const { created } = await ensurePlayer(u, { ref: data.slice(4) });
-    await send(chat, created ? "🎉 <b>Аккаунт создан!</b> Стартовый капитал уже на счету." : "Аккаунт уже есть — вот он:", MENU);
-    return send(chat, await profileText(u.id), playButton());
+  const ctx: Ctx = { chat, from, updateId: update.update_id, isPrivate: chat.type === "private", settings: { casino: true, party: true }, messageId };
+  let alert: string | null = null;
+  let show = false;
+  try {
+    if (data === "noop") alert = null;
+    else if (data === "reg" || data.startsWith("reg:")) {
+      const { created } = await ensurePlayer(from, { ref: data.slice(4) });
+      forgetLinked(from.id);
+      alert = created ? "🎉 Аккаунт создан! $50,000 уже на счету." : "Аккаунт уже есть.";
+      if (created) await reply(ctx, `🎉 ${mention(from)} теперь в BAYHAN GAME! Стартовый капитал $50,000. Напишите «помощь».`, ctx.isPrivate ? MENU : undefined);
+    } else if (data === "howlink") await send(chat.id, HOW_LINK, playButton());
+    else if (data.startsWith("mo:") || data.startsWith("mc:")) { alert = await games.minesButton(ctx, data, messageId); show = Boolean(alert && /не ваша|Мина/.test(alert)); }
+    else if (data.startsWith("cc:")) alert = await games.crashButton(ctx, data, messageId);
+    else if (data.startsWith("da:") || data.startsWith("dc:")) { alert = await games.duelButton(ctx, data, messageId); show = true; }
+    else if (data.startsWith("p:")) { alert = await party.button(ctx, data); show = true; }
+    else if (data.startsWith("ad:")) alert = await adminPanel.button(ctx, data, messageId);
+    else if (data.startsWith("ci:")) {
+      const [, id, yes] = data.split(":");
+      await rpc("tg_rpc", { p_tg: from.id, p_fn: "corp_respond", p_args: { p_invite: Number(id), p_accept: yes === "1" } });
+      alert = yes === "1" ? "Вы вступили в корпорацию!" : "Приглашение отклонено.";
+    } else if (data.startsWith("mr:")) {
+      const [, id, yes] = data.split(":");
+      await rpc("tg_rpc", { p_tg: from.id, p_fn: "marriage_respond", p_args: { p_proposal: Number(id), p_accept: yes === "1" } });
+      alert = yes === "1" ? "💍 Поздравляем с браком!" : "Предложение отклонено.";
+      if (yes === "1") await reply(ctx, `💍 ${mention(from)} ответил(а) «Да»! Поздравляем молодожёнов!`);
+    } else if (data.startsWith("cs:")) {
+      if (!(await isChatAdmin(chat.id, from.id))) alert = "Только для админов чата.";
+      else {
+        const [, k, v] = data.split(":");
+        const s = await rpc<any>("tg_chat_set", { p_chat: chat.id, p_key: k, p_value: v === "1" });
+        const view = settingsView({ casino: s.casino !== false, party: s.party !== false });
+        await tg("editMessageText", { chat_id: chat.id, message_id: messageId, text: view.text, parse_mode: "HTML", reply_markup: { inline_keyboard: view.kb } });
+        alert = "Сохранено";
+      }
+    } else if (data === "daily") {
+      if (await linkedUser(from.id)) await economy.daily(ctx);
+    }
+  } catch (e) {
+    alert = errorText(e);
+    show = true;
   }
-  if (data === "howlink") return send(chat, HOW_LINK, playButton());
-  if (data === "daily") return (await requireLinked(chat, u)) && claimDaily(chat, u, `tg-cb-${updateId}`);
+  await tg("answerCallbackQuery", { callback_query_id: q.id, ...(alert ? { text: alert.slice(0, 190), show_alert: show || alert.length > 60 } : {}) });
+}
+
+async function onMembership(u: any) {
+  const chat = u.chat;
+  if (chat.type === "private") return;
+  const status = u.new_chat_member?.status;
+  if (status === "member" || status === "administrator") {
+    const was = u.old_chat_member?.status;
+    await rpc("tg_chat_seen", { p_chat: chat.id, p_title: chat.title ?? "", p_type: chat.type, p_tg: u.from?.id ?? null });
+    if (was === "left" || was === "kicked") {
+      await send(chat.id, `👑 <b>BAYHAN GAME</b> в чате!\n\nИграйте прямо здесь: «б» — баланс, «бонус», «работа», «казино 1к», «мины 1к», «дуэль 1к», «мафия», «шпион», «крокодил». Все команды — «помощь».\n\n` +
+        `Чтобы я понимал команды без «/», сделайте меня администратором чата (права не нужны). Настройки чата: «настройки».`);
+    }
+  } else if (status === "left" || status === "kicked") {
+    await rpc("tg_chat_left", { p_chat: chat.id });
+  }
 }
 
 // --------------------------------------------------------------- server ----
@@ -222,27 +229,38 @@ Deno.serve(async (req) => {
   } catch {
     return new Response("bad request", { status: 400 });
   }
+  // pg_cron timer for party games (same secret header).
+  if (update?.tick === true) {
+    try {
+      await party.tick();
+    } catch (e) {
+      console.error("tick failed:", e instanceof Error ? e.message : "unknown");
+    }
+    return new Response("ok");
+  }
   if (!Number.isSafeInteger(update?.update_id)) return new Response("ok");
   // Telegram re-delivers an update until it gets 200: handle each one once.
   if (!(await rpc<boolean>("tg_seen_update", { p_update_id: update.update_id }))) return new Response("ok");
 
-  const from: TgUser | undefined = update.message?.from ?? update.callback_query?.from;
-  const chat: number | undefined = update.message?.chat?.id ?? update.callback_query?.message?.chat?.id ?? from?.id;
-  if (!from || from.is_bot || !chat) return new Response("ok");
-  // Private chats only; in groups the bot stays silent.
-  if (update.message && update.message.chat?.type !== "private") return new Response("ok");
-  if (!(await rpc<boolean>("tg_rate_hit", { p_key: `bot:${from.id}`, p_limit: 30, p_window_seconds: 60 }))) return new Response("ok");
+  if (update.my_chat_member) {
+    await onMembership(update.my_chat_member).catch((e) => console.warn("membership:", e instanceof Error ? e.message : "unknown"));
+    return new Response("ok");
+  }
+  const msg = update.message;
+  const from: TgUser | undefined = msg?.from ?? update.callback_query?.from;
+  if (!from || from.is_bot) return new Response("ok");
+  if (msg && !["private", "group", "supergroup"].includes(msg.chat?.type)) return new Response("ok");
+  if (!(await rpc<boolean>("tg_rate_hit", { p_key: `bot:${from.id}`, p_limit: 40, p_window_seconds: 60 }))) return new Response("ok");
 
+  const chatId: number = msg?.chat?.id ?? update.callback_query?.message?.chat?.id ?? from.id;
   try {
-    if (update.callback_query) await onCallback(update.callback_query, update.update_id);
-    else if (typeof update.message?.text === "string") await onCommand(chat, from, update.message.text, update.update_id);
-    else if (update.message) await send(chat, "Я понимаю только команды и кнопки меню 🙂", MENU);
+    if (update.callback_query) await onCallback(update, update.callback_query);
+    else if (msg) await onMessage(update, msg);
   } catch (e) {
-    const code = e instanceof GameError ? (e.message.match(/[a-z_]{4,}/)?.[0] ?? "") : "";
     // Only the error text: no tokens, no message bodies.
     if (e instanceof GameError) console.warn("bot game error:", e.message);
     else console.error("bot update failed:", e instanceof Error ? e.message : "unknown");
-    await send(chat, ERRORS[code] ?? "⚠️ Сервер игры временно недоступен. Попробуйте ещё раз через минуту.", MENU);
+    if (msg) await send(chatId, `⚠️ ${errorText(e)}`, undefined, msg.chat?.type === "private" ? undefined : msg.message_id);
   }
   return new Response("ok");
 });

@@ -13,7 +13,11 @@
     "test:db:social": "node scripts/db-e2e-social.mjs",
     "test:tg": "node scripts/tg-e2e.mjs",
     "telegram:setup": "node scripts/telegram-setup.mjs",
-    "db:backup": "node scripts/db-backup.mjs"
+    "db:backup": "node scripts/db-backup.mjs",
+    "test:tg:chat": "node scripts/tg-chat-e2e.mjs",
+    "test:db:chatbot": "node scripts/db-e2e-chatbot.mjs",
+    "test:bot:logic": "npx -y deno@2.5.6 test --node-modules-dir=none supabase/functions/_shared/party_test.ts",
+    "bot:names": "node scripts/gen-bot-names.mjs"
   },
   "dependencies": {
     "@capacitor/android": "8.5.3",
