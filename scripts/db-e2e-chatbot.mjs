@@ -104,6 +104,54 @@ try {
   }
   const n = Number((await c.query("select count(*) n from ledger_entries where user_id = $1 and op_type = 'party_reward'", [u1])).rows[0].n);
   check("party rewards capped per day", n === 5, `rewards=${n}`);
+  // ---- tg_begin: one call per update
+  const b1 = (await svc("select public.tg_begin(777000001, $1, -100126, 'supergroup', 'Chat', 40) r", [T1])).rows?.[0]?.r;
+  check("tg_begin: new update, linked player, chat settings", b1?.new === true && b1.linked === true && b1.settings?.casino === true && b1.party === false, JSON.stringify(b1));
+  const b2 = (await svc("select public.tg_begin(777000001, $1, -100126, 'supergroup', 'Chat', 40) r", [T1])).rows?.[0]?.r;
+  check("tg_begin: a re-delivered update is reported as seen", b2?.new === false);
+  check("tg_begin registers the chat and the member", Number((await c.query("select count(*) n from tg_chat_members where chat_id = -100126")).rows[0].n) === 1);
+  const b3 = (await svc("select public.tg_begin(777000002, $1, $1, 'private', null, 40) r", [T3])).rows?.[0]?.r;
+  check("tg_begin: unlinked user in private", b3?.new === true && b3.linked === false);
+  const rc = (await svc("select public.tg_rpc_cash($1, 'get_my_snapshot', '{}') r", [T1])).rows?.[0]?.r;
+  check("tg_rpc_cash returns the result and the cash", rc?.r?.user_id === u1 && Number(rc.cash) === await cash(u1));
+
+  // ---- lottery
+  const l0 = await cash(u1), l2 = await cash(u2);
+  check("lottery bet below minimum refused", Boolean((await svc("select public.tg_lottery_buy($1, -100127, 50)", [T1])).error));
+  await svc("select public.tg_lottery_buy($1, -100127, 1000)", [T1]);
+  await svc("select public.tg_lottery_buy($1, -100127, 1000)", [T1]);
+  const lb = (await svc("select public.tg_lottery_buy($1, -100127, 3000) r", [T2])).rows?.[0]?.r;
+  check("lottery collects bets into one pot", Number(lb?.pot) === 5000 && Number(lb.players) === 2);
+  check("lottery debits the bets", (await cash(u1)) === l0 - 2000 && (await cash(u2)) === l2 - 3000);
+  await c.query("update tg_lotteries set draw_at = now() - interval '1 second' where chat_id = -100127 and status = 'open'");
+  const draw = (await svc("select public.tg_lottery_draw_due() r")).rows?.[0]?.r?.find((x) => x.chat_id === -100127);
+  const after = (await cash(u1)) + (await cash(u2));
+  check("lottery draw pays pot minus 5% fee to one winner", draw && !draw.refunded && Number(draw.payout) === 4750 && after === l0 + l2 - 5000 + 4750, JSON.stringify(draw));
+  check("a drawn lottery is not drawn twice", !(await svc("select public.tg_lottery_draw_due() r")).rows?.[0]?.r?.some((x) => x.chat_id === -100127));
+  const s0 = await cash(u1);
+  await svc("select public.tg_lottery_buy($1, -100128, 500)", [T1]);
+  await c.query("update tg_lotteries set draw_at = now() - interval '1 second' where chat_id = -100128 and status = 'open'");
+  const solo = (await svc("select public.tg_lottery_draw_due() r")).rows?.[0]?.r?.find((x) => x.chat_id === -100128);
+  check("lottery with one player is refunded", solo?.refunded === true && (await cash(u1)) === s0);
+
+  // ---- giveaways
+  const g0 = await cash(u1);
+  const gv = (await svc("select public.tg_giveaway_create($1, -100129, 1000, 3) r", [T1])).rows?.[0]?.r;
+  check("giveaway debits only whole shares", Number(gv?.share) === 333.33 && (await cash(u1)) === Math.round((g0 - 999.99) * 100) / 100);
+  check("creator cannot claim own giveaway", String((await svc("select public.tg_giveaway_claim($1, $2)", [gv.id, T1])).error).includes("giveaway_own"));
+  const c2 = await cash(u2);
+  await svc("select public.tg_giveaway_claim($1, $2)", [gv.id, T2]);
+  check("a player claims one share once", String((await svc("select public.tg_giveaway_claim($1, $2)", [gv.id, T2])).error).includes("giveaway_already") && (await cash(u2)) === Math.round((c2 + 333.33) * 100) / 100);
+  check("unlinked users cannot claim", String((await svc("select public.tg_giveaway_claim($1, $2)", [gv.id, T3])).error).includes("telegram_not_linked"));
+  await c.query("update tg_giveaways set expires_at = now() - interval '1 second' where id = $1", [gv.id]);
+  const g1 = await cash(u1);
+  await svc("select public.tg_giveaway_expire_due()");
+  check("unclaimed shares return to the creator on expiry", Math.round(((await cash(u1)) - g1) * 100) / 100 === 666.66);
+  check("expired giveaway cannot be claimed", String((await svc("select public.tg_giveaway_claim($1, $2)", [gv.id, T2])).error).includes("giveaway_closed"));
+  for (const role of ["anon", "authenticated"]) {
+    check(`${role} cannot draw lotteries or create giveaways`, Boolean((await as(role, "select public.tg_lottery_draw_due()")).error) && Boolean((await as(role, "select public.tg_giveaway_create($1, 1, 1000, 1)", [T1], u1)).error));
+  }
+
   const running = (await svc("insert into tg_party_games (chat_id, kind, phase) values (-100125, 'mafia', 'lobby') returning id")).rows[0].id;
   check("unfinished game pays nothing", Boolean((await svc("select public.tg_party_reward($1, array[$2]::bigint[])", [running, T1])).error));
   check("one running party game per chat", Boolean((await svc("insert into tg_party_games (chat_id, kind, phase) values (-100125, 'spy', 'lobby')")).error));

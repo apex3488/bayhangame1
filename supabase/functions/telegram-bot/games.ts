@@ -2,7 +2,7 @@
 // (play_game, mines_*, crash_*); the bot only shows them. Duels are settled atomically in SQL.
 import { parseAmount, type ChatCommand } from "../_shared/bot-commands.ts";
 import { rpc } from "../_shared/telegram.ts";
-import { type Buttons, call, type Ctx, edit, errorText, esc, key, mention, money, n, name, need, reply, resolveAmount } from "./ctx.ts";
+import { type Buttons, call, callCash, type Ctx, edit, errorText, esc, key, mention, money, n, name, need, reply, resolveAmount, send } from "./ctx.ts";
 
 const GAME_OF: Record<string, string> = {
   casino: "casino", spin: "spin", slots: "slots", dice: "dice", basketball: "basketball", darts: "darts", bowling: "bowling",
@@ -47,7 +47,7 @@ export async function bet(ctx: Ctx, c: ChatCommand) {
   }
   const amount = await resolveAmount(ctx, parseAmount(args[0]));
   if (!amount) return reply(ctx, `Укажите ставку: «${EXAMPLE[c.cmd]}».`);
-  const r = await call(ctx, "play_game", { p_game: game, p_bet: amount, p_choice: choice, p_idempotency_key: key(ctx) });
+  const { r, cash } = await callCash(ctx, "play_game", { p_game: game, p_bet: amount, p_choice: choice, p_idempotency_key: key(ctx) });
   if (r.status === "duplicate") return;
   const res = r.result ?? {};
   let show = "";
@@ -59,8 +59,7 @@ export async function bet(ctx: Ctx, c: ChatCommand) {
   else show = `Множитель ×${n(r.multiplier)}\n`;
   const win = n(r.payout) > 0;
   const outcome = win ? `✅ Выигрыш <b>${money(r.payout)}</b> (×${n(r.multiplier)})` : `❌ Проигрыш ${money(r.bet)}`;
-  const s = await call(ctx, "get_my_snapshot");
-  return reply(ctx, `${EMOJI[game]} ${mention(ctx.from)} · ${name(`game_${game}`, game)}, ставка ${money(r.bet)}\n${show}${outcome}\n💵 Баланс: ${money(s.cash)}`);
+  return reply(ctx, `${EMOJI[game]} ${mention(ctx.from)} · ${name(`game_${game}`, game)}, ставка ${money(r.bet)}\n${show}${outcome}\n💵 Баланс: ${money(cash)}`);
 }
 
 // ------------------------------------------------------------------ mines ----
@@ -131,7 +130,8 @@ export async function crash(ctx: Ctx, c: ChatCommand) {
   const auto = c.args[1] ? Number(c.args[1].replace(",", ".").replace(/^[xх×]/i, "")) : 2;
   if (!amount || !(auto >= 1.01 && auto <= 1000)) return reply(ctx, "Краш: «краш 1к 2» — ставка и автовывод (от 1.01). Забрать раньше можно кнопкой.");
   const st = await call(ctx, "crash_start", { p_bet: amount, p_auto: auto, p_idempotency_key: key(ctx) });
-  const sent = await reply(ctx, crashText(mention(ctx.from), st), [[{ text: "💰 Забрать", callback_data: `cc:${st.round_id}` }]]);
+  // Sent right away (not as the webhook reply): the message id is needed to update the flight.
+  const sent = await send(ctx.chat.id, crashText(mention(ctx.from), st), [[{ text: "💰 Забрать", callback_data: `cc:${st.round_id}` }]], ctx.isPrivate ? undefined : ctx.messageId);
   const messageId: number | undefined = sent?.result?.message_id;
   // Follow the flight in the background: the webhook answers Telegram right away. The round is
   // settled even if the message could not be sent or edited (crash_state settles auto cash-outs).

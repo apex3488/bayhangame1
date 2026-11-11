@@ -89,7 +89,7 @@ export async function telegramAuth(
 ): Promise<AuthReply> {
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
-  const res = await fetch(`${base}/functions/v1/telegram-auth`, {
+  const res = await fetch(`${base}/functions/v1/telegram-auth?forceFunctionRegion=ap-southeast-1`, {
     method: "POST",
     headers: { "content-type": "application/json", apikey: key, ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}) },
     body: JSON.stringify({ action, initData, ...extra }),

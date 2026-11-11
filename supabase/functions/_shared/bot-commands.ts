@@ -99,6 +99,7 @@ const WORDS: Record<string, string> = {
   "рассылка": "a_broadcast", "статистика": "a_stats", "стат": "a_stats",
   // English names behind the slash commands in the Telegram menu (/tasks, /mafia, ...).
   "tasks": "quests", "invite": "invite", "play": "play", "mafia": "mafia", "spy": "spy", "crocodile": "crocodile",
+  "меню": "menu", "menu": "menu", "лотерея": "lottery", "lottery": "lottery", "раздача": "giveaway", "giveaway": "giveaway",
 };
 
 /**
@@ -109,7 +110,7 @@ const MAX_ARGS: Record<string, number> = {
   casino: 1, spin: 1, slots: 1, dice: 2, basketball: 1, darts: 1, bowling: 1, up: 1, down: 1, trade: 2,
   crash: 2, mines: 2, bankin: 1, bankout: 1, deposit: 2, btcbuy: 1, btcsell: 1, transfer: 5, buy: 5,
   sell: 6, upgrade: 5, hire: 5, case: 3, promo: 4, nick: 4, corp: 8, marry: 4, duel: 1, chatsettings: 2,
-  work: 3, top: 1, play: 2, vip: 6, a_give: 6, a_take: 6, a_ban: 20, a_unban: 4, a_player: 4, a_broadcast: 200, admin: 0,
+  work: 3, top: 1, play: 2, vip: 6, lottery: 1, giveaway: 2, a_give: 6, a_take: 6, a_ban: 20, a_unban: 4, a_player: 4, a_broadcast: 200, admin: 0,
 };
 
 export interface ChatCommand {

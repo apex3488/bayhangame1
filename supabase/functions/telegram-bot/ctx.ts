@@ -14,6 +14,13 @@ export interface Ctx {
   updateId: number;
   isPrivate: boolean;
   settings: { casino: boolean; party: boolean };
+  /** Known from tg_begin: the sender has a game account. */
+  linked?: boolean;
+  /**
+   * The first reply of a message update is not sent by us: it goes back to Telegram as the
+   * webhook response, which saves a round trip to Telegram's servers.
+   */
+  defer?: { payload?: Record<string, unknown> };
 }
 
 export const esc = (s: unknown) => String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
@@ -25,17 +32,28 @@ export const mention = (u: TgUser) => `<a href="tg://user?id=${u.id}">${esc(u.fi
 
 export type Buttons = { text: string; callback_data?: string; url?: string; web_app?: { url: string } }[][];
 
+/** Sends a message now (use when the message id is needed or several messages go out). */
 export function send(chatId: number, text: string, buttons?: Buttons | object, replyTo?: number) {
-  return tg("sendMessage", {
+  return tg("sendMessage", sendParams(chatId, text, buttons, replyTo));
+}
+
+function sendParams(chatId: number, text: string, buttons?: Buttons | object, replyTo?: number) {
+  return {
     chat_id: chatId, text, parse_mode: "HTML", link_preview_options: { is_disabled: true },
     ...(replyTo ? { reply_parameters: { message_id: replyTo, allow_sending_without_reply: true } } : {}),
     ...(buttons ? { reply_markup: Array.isArray(buttons) ? { inline_keyboard: buttons } : buttons } : {}),
-  });
+  };
 }
 
-/** Answer in the same chat; in groups as a reply to the command. */
-export const reply = (ctx: Ctx, text: string, buttons?: Buttons | object) =>
-  send(ctx.chat.id, text, buttons, ctx.isPrivate ? undefined : ctx.messageId);
+/** Answer in the same chat; in groups as a reply to the command. Returns no message id. */
+export function reply(ctx: Ctx, text: string, buttons?: Buttons | object) {
+  const params = sendParams(ctx.chat.id, text, buttons, ctx.isPrivate ? undefined : ctx.messageId);
+  if (ctx.defer && !ctx.defer.payload) {
+    ctx.defer.payload = { method: "sendMessage", ...params };
+    return Promise.resolve({ ok: true, result: {} as { message_id?: number } });
+  }
+  return tg("sendMessage", params);
+}
 
 export function edit(chatId: number, messageId: number, text: string, buttons?: Buttons) {
   return tg("editMessageText", {
@@ -67,7 +85,22 @@ const EXTRA_ERRORS: Record<string, string> = {
   game_disabled: "Эта игра сейчас выключена.",
   bet_too_low: "Ставка меньше минимальной.",
   bet_too_high: "Ставка больше максимальной.",
+  giveaway_closed: "Раздача уже закончилась.",
+  giveaway_own: "Свою раздачу забирать нельзя.",
+  giveaway_already: "Вы уже забрали свою долю.",
+  cannot_target_self: "Нельзя применить к себе.",
+  reason_required: "Укажите причину (от 5 символов).",
+  admin_adjust_limit_exceeded: "Сумма больше лимита корректировки.",
+  target_not_found: "Игрок не найден.",
+  already_exists: "Такой код уже есть.",
+  invalid_code: "Код: латиница, цифры и _.",
+  invalid_value: "Неверное значение.",
 };
+
+/** Like call(), plus the player's cash after the operation, in one round trip. */
+export async function callCash<T = any>(ctx: Ctx, fn: string, args: Record<string, unknown> = {}): Promise<{ r: T; cash: number }> {
+  return await rpc<{ r: T; cash: number }>("tg_rpc_cash", { p_tg: ctx.from.id, p_fn: fn, p_args: args });
+}
 
 /** Calls a player RPC as the Telegram user (the same function the browser calls). */
 export async function call<T = any>(ctx: Ctx | number, fn: string, args: Record<string, unknown> = {}): Promise<T> {
@@ -81,7 +114,7 @@ export const key = (ctx: Ctx, tag = "") => `tg-${ctx.chat.id}-${ctx.updateId}${t
 const linkedCache = new Map<number, boolean>();
 /** True if the user has a game account; otherwise answers with a one-tap registration button. */
 export async function need(ctx: Ctx): Promise<boolean> {
-  if (linkedCache.get(ctx.from.id)) return true;
+  if (ctx.linked || linkedCache.get(ctx.from.id)) return true;
   const ok = Boolean(await linkedUser(ctx.from.id));
   if (ok) {
     linkedCache.set(ctx.from.id, true);

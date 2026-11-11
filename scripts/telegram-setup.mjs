@@ -28,7 +28,7 @@ async function api(method, body) {
 }
 
 await api("setWebhook", {
-  url: `${supabaseUrl}/functions/v1/telegram-bot`,
+  url: `${supabaseUrl}/functions/v1/telegram-bot?forceFunctionRegion=ap-southeast-1`,
   secret_token: secret,
   allowed_updates: ["message", "callback_query", "my_chat_member"],
   drop_pending_updates: false,
