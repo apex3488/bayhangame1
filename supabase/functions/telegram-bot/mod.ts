@@ -327,7 +327,7 @@ async function groupScreen(chatId: number, me: number): Promise<Screen> {
   const locked = Boolean(lock.data?.locked);
   const text = `${HEAD}\n<b>${esc(title)}</b>\n\n` +
     `🤖 Бот: ${mark(M.hasRight(bm, "restrict"))} блокировка · ${mark(M.hasRight(bm, "delete"))} удаление сообщений\n` +
-    `👤 Вы: ${M.hasRight(o, "admin") ? `${mark(M.hasRight(o, "restrict"))} блокировка · ${mark(M.hasRight(o, "delete"))} удаление` : "❌ не администратор группы"}\n` +
+    `👤 Вы: ${M.hasRight(o, "admin") ? "администратор группы" : "не администратор группы — это не нужно, работает по правам бота"}\n` +
     `💬 Чат: ${locked ? "🔒 закрыт" : "открыт"} · известно участников: ${st?.members ?? 0} · наказаний действует: ${st?.active ?? 0}\n\n` +
     `В группе: ответьте на сообщение «бан», «бан 7д Реклама», «мут 1ч», «кик», «дел», «варн».`;
   return {

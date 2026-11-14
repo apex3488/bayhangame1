@@ -154,14 +154,16 @@ export async function member(api: Api, chatId: number, userId: number, cache = t
 }
 
 /**
- * Being the game owner does not bypass Telegram: the owner must be the group's creator or an admin
- * with the needed right, and so must the bot. Returns the Russian refusal, or null when allowed.
+ * The group's consent is the bot's admin rights: whoever owns the group promotes the bot and picks
+ * its rights. The BAYHAN GAME owner (already verified by Telegram id) does not have to be an admin
+ * of the group, but nothing works beyond what the bot was granted. Returns the refusal, or null.
  */
-export async function authorize(api: Api, chatId: number, ownerId: number, botId: number, need: Need | null): Promise<string | null> {
+export async function authorize(api: Api, chatId: number, _ownerId: number, botId: number, need: Need | null): Promise<string | null> {
   if (!need) return null;
-  const [o, b] = await Promise.all([member(api, chatId, ownerId), need === "admin" ? Promise.resolve(null) : member(api, chatId, botId)]);
-  if (need === "admin") return hasRight(o, "admin") ? null : "Вы не администратор этой группы.";
-  if (!hasRight(o, need)) return `У вас в этой группе нет права «${RIGHT_NAME[need]}».`;
+  const b = await member(api, chatId, botId);
+  if (need === "admin") {
+    return hasRight(b, "admin") ? null : "BAYHAN GAME: бот не администратор группы. Попросите владельца группы назначить его администратором.";
+  }
   if (!hasRight(b, need)) {
     // deno-lint-ignore no-explicit-any
     return (b as any)?.status === "administrator"

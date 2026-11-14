@@ -65,10 +65,11 @@ Deno.test("parse: Telegram duration limits are enforced, never silently made per
   assertEquals(M.fmtDuration(null), "навсегда");
 });
 
-Deno.test("authorize: owner and bot both need the Telegram right in this group", async () => {
+Deno.test("authorize: the bot's rights in the group decide; the owner need not be a group admin", async () => {
   M.clearMemberCache();
   let t = mockApi({ [OWNER]: { status: "member" }, [BOT]: ADMIN_RIGHTS });
-  assert((await M.authorize(t.api, CHAT, OWNER, BOT, "restrict"))?.includes("нет права"), "the game owner does not bypass Telegram");
+  assertEquals(await M.authorize(t.api, CHAT, OWNER, BOT, "restrict"), null, "an owner who is a plain member may moderate via the bot");
+  assertEquals(await M.authorize(t.api, CHAT, OWNER, BOT, "admin"), null);
   M.clearMemberCache();
   t = mockApi({ [OWNER]: { status: "creator" }, [BOT]: { status: "administrator", can_restrict_members: false, can_delete_messages: true } });
   assert((await M.authorize(t.api, CHAT, OWNER, BOT, "restrict"))?.includes("недостаточно прав"));
@@ -81,8 +82,11 @@ Deno.test("authorize: owner and bot both need the Telegram right in this group",
   assertEquals(await M.authorize(t.api, CHAT, OWNER, BOT, "restrict"), null);
   assertEquals(await M.authorize(t.api, CHAT, OWNER, BOT, "admin"), null);
   M.clearMemberCache();
-  t = mockApi({ [OWNER]: { status: "member" } });
-  assert(await M.authorize(t.api, CHAT, OWNER, BOT, "admin"), "warnings need the owner to be a group admin");
+  t = mockApi({ [OWNER]: { status: "creator" }, [BOT]: { status: "member" } });
+  assert(await M.authorize(t.api, CHAT, OWNER, BOT, "admin"), "nothing works where the bot is not an admin");
+  M.clearMemberCache();
+  t = mockApi({ [OWNER]: { status: "creator" } });
+  assert(await M.authorize(t.api, CHAT, OWNER, BOT, "restrict"), "a bot that is not in the group can do nothing");
 });
 
 Deno.test("target: reply author by id; channels, anonymous admins, service accounts, self and bot refused", () => {
