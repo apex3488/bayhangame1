@@ -13,6 +13,7 @@ import * as games from "./games.ts";
 import * as party from "./party-io.ts";
 import * as chatx from "./chat.ts";
 import * as adminPanel from "./admin.ts";
+import * as mod from "./mod.ts";
 
 const MENU = {
   keyboard: [
@@ -74,6 +75,7 @@ async function start(ctx: Ctx, arg: string) {
     return economy.profile(ctx);
   }
   if (!ctx.linked) return welcomeNew(ctx, arg.startsWith("ref_") ? arg.slice(4) : "");
+  if (arg === "mod" && (await mod.panel(ctx))) return;
   if (arg === "play") return reply(ctx, "Игра открывается прямо в Telegram 👇", playButton("🎮 Открыть BAYHAN GAME"));
   await send(ctx.chat.id, `👑 <b>С возвращением в BAYHAN GAME!</b>\nНапишите «меню» или «помощь».`, MENU);
   return economy.profile(ctx);
@@ -104,6 +106,9 @@ async function onCommand(ctx: Ctx, c: ChatCommand) {
     case "crocodile": return party.start(ctx, "crocodile");
     case "partystop": return party.stop(ctx);
     case "chatsettings": return chatSettings(ctx);
+    case "moderation":
+      if (await mod.panel(ctx)) return;
+      return ctx.isPrivate ? reply(ctx, "Не знаю такой команды 🤔 Напишите «меню» или «помощь».") : undefined;
     case "admin": case "a_give": case "a_take": case "a_ban": case "a_unban": case "a_player": case "a_broadcast": case "a_stats":
       if (await adminPanel.command(ctx, c)) return;
       return ctx.isPrivate ? reply(ctx, "Не знаю такой команды 🤔 Напишите «меню» или «помощь».") : undefined;
@@ -134,9 +139,10 @@ async function chatSettings(ctx: Ctx) {
   return reply(ctx, v.text, v.kb);
 }
 
-type Begin = { new: boolean; rate_ok?: boolean; linked?: boolean; settings?: any; party?: boolean; state?: { kind: string; data: any } | null };
+type Begin = { new: boolean; rate_ok?: boolean; linked?: boolean; owner?: boolean; settings?: any; party?: boolean; state?: { kind: string; data: any } | null };
 
 async function onMessage(update: any, msg: any, begin: Begin, ctx: Ctx) {
+  if (!ctx.isPrivate && (msg.new_chat_members || msg.left_chat_member)) return mod.onService(msg);
   const text: string = msg.text ?? "";
   if (!text) {
     if (ctx.isPrivate) await reply(ctx, "Я понимаю команды и кнопки 🙂 Напишите «меню».");
@@ -144,6 +150,7 @@ async function onMessage(update: any, msg: any, begin: Begin, ctx: Ctx) {
   }
   // An open admin wizard step takes the next private message.
   if (ctx.isPrivate && begin.state && !text.startsWith("/")) {
+    if (await mod.onInput(ctx, text, begin.state)) return;
     if (await adminPanel.onInput(ctx, text, begin.state)) return;
   }
   // Private menu buttons ("🏆 Рейтинг") and /start with a payload.
@@ -152,6 +159,8 @@ async function onMessage(update: any, msg: any, begin: Begin, ctx: Ctx) {
     if (pc.cmd === "/start") return start(ctx, pc.arg);
     if (MENU_TO_CHAT[pc.cmd] && !text.startsWith("/")) return onCommand(ctx, { cmd: MENU_TO_CHAT[pc.cmd], args: [], rest: "" });
   }
+  // The owner's group moderation commands («бан», «мут 1ч», «закрыть чат» …) come first.
+  if (!ctx.isPrivate && begin.owner && (await mod.onGroupMessage(ctx, msg, true))) return;
   const c = parseChat(text, BOT_USERNAME);
   if (c) return onCommand(ctx, c);
   // Ordinary group messages matter only while a party game runs (crocodile guesses, the spy's guess).
@@ -186,6 +195,7 @@ async function onCallback(q: any, ctx: Ctx): Promise<{ text?: string; show?: boo
     else if (data.startsWith("da:") || data.startsWith("dc:")) { alert = await games.duelButton(ctx, data, messageId); show = true; }
     else if (data.startsWith("gv:")) { alert = await chatx.giveawayButton(ctx, data, messageId); show = true; }
     else if (data.startsWith("p:")) { alert = await party.button(ctx, data); show = true; }
+    else if (data.startsWith("md:")) { alert = await mod.button(ctx, data, messageId); show = Boolean(alert && alert.length > 40); }
     else if (data.startsWith("ad:")) { alert = await adminPanel.button(ctx, data, messageId); show = Boolean(alert && alert.length > 40); }
     else if (data.startsWith("ci:")) {
       const [, id, yes] = data.split(":");
@@ -245,7 +255,7 @@ Deno.serve(async (req) => {
   }
   // pg_cron timer for party games, lotteries and giveaways (same secret header).
   if (update?.tick === true) {
-    for (const job of [party.tick, chatx.tick]) {
+    for (const job of [party.tick, chatx.tick, mod.tick]) {
       try {
         await job();
       } catch (e) {
@@ -261,6 +271,11 @@ Deno.serve(async (req) => {
     await onMembership(update.my_chat_member).catch((e) => console.warn("membership:", e instanceof Error ? e.message : "unknown"));
     return new Response("ok");
   }
+  if (update.chat_member) {
+    if (!(await rpc<boolean>("tg_seen_update", { p_update_id: update.update_id }))) return new Response("ok");
+    await mod.onChatMember(update.chat_member).catch((e) => console.warn("chat member:", e instanceof Error ? e.message : "unknown"));
+    return new Response("ok");
+  }
   const msg = update.message;
   const q = update.callback_query;
   const from: TgUser | undefined = msg?.from ?? q?.from;
@@ -269,7 +284,8 @@ Deno.serve(async (req) => {
   if (!["private", "group", "supergroup"].includes(chat.type)) return new Response("ok");
 
   // One round trip: dedupe, rate limit, chat bookkeeping, account and wizard state.
-  const begin = await rpc<Begin>("tg_begin", { p_update: update.update_id, p_tg: from.id, p_chat: chat.id, p_chat_type: chat.type, p_title: chat.title ?? "", p_limit: 60 });
+  const begin = await rpc<Begin>("tg_begin", { p_update: update.update_id, p_tg: from.id, p_chat: chat.id, p_chat_type: chat.type, p_title: chat.title ?? "", p_limit: 60,
+    p_msg: msg?.message_id ?? null, p_username: from.username ?? null, p_first_name: from.first_name ?? null });
   if (!begin?.new || begin.rate_ok === false) return new Response("ok");
 
   const ctx: Ctx = {

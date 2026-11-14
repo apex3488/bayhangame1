@@ -155,6 +155,70 @@ try {
   const running = (await svc("insert into tg_party_games (chat_id, kind, phase) values (-100125, 'mafia', 'lobby') returning id")).rows[0].id;
   check("unfinished game pays nothing", Boolean((await svc("select public.tg_party_reward($1, array[$2]::bigint[])", [running, T1])).error));
   check("one running party game per chat", Boolean((await svc("insert into tg_party_games (chat_id, kind, phase) values (-100125, 'spy', 'lobby')")).error));
+
+  // ---------------------------------------------------- group moderation (0029) ----
+  const TO = 9100000001, MC = -100990;
+  const ownerUid = await makeUser("cbt_owner", "CbtOwner", TO);
+  await c.query("insert into admin_roles (user_id, role) values ($1, 'owner') on conflict (user_id) do update set role = 'owner'", [ownerUid]);
+  const gameBefore = (await c.query("select count(*)::int n, coalesce(sum(cash), 0)::text s from wallets")).rows[0];
+  const banBefore = (await c.query("select count(*)::int n from profiles where status = 'blocked'")).rows[0].n;
+  const ob = (await svc("select public.tg_begin(990001, $1, $2, 'supergroup', 'Мод тест', 60, 41, 'own', 'Owner') b", [TO, MC])).rows?.[0]?.b;
+  check("tg_begin flags the game owner", ob?.owner === true);
+  const pb = (await svc("select public.tg_begin(990002, $1, $2, 'supergroup', 'Мод тест', 60, 42, 'pl1', 'Игрок') b", [T1, MC])).rows?.[0]?.b;
+  check("tg_begin: a player is not the owner", pb?.owner === false);
+  check("tg_begin keeps the old six-argument call working", (await svc("select public.tg_begin(990003, $1, $2, 'supergroup', 'Мод тест', 60) b", [T2, MC])).rows?.[0]?.b?.new === true);
+  check("message ids are indexed for cleanup", (await c.query("select count(*)::int n from tg_mod_messages where chat_id = $1", [MC])).rows[0].n === 2);
+  check("member names are stored", (await c.query("select first_name from tg_chat_members where chat_id = $1 and telegram_id = $2", [MC, T1])).rows[0]?.first_name === "Игрок");
+  await svc("select public.tg_mod_seen($1, 'Мод тест', 'supergroup', $2, 'member')", [MC, JSON.stringify([{ id: 9100000011, first_name: "Новичок" }, { id: 9100000012, username: "nick12" }])]);
+  await svc("select public.tg_mod_seen($1, 'Мод тест', 'supergroup', $2, 'left')", [MC, JSON.stringify([{ id: 9100000013, first_name: "Ушёл" }])]);
+  check("joins and leaves become known members", (await c.query("select count(*)::int n from tg_chat_members where chat_id = $1", [MC])).rows[0].n === 6);
+
+  const notOwner = await svc("select public.tg_mod_bulk_create($1, $2, 'ban', 'all', null, null) d", [T1, MC]);
+  check("a non-owner cannot create a mass action", String(notOwner.error).includes("forbidden"));
+  const draft = (await svc("select public.tg_mod_bulk_create($1, $2, 'ban', 'all', null, array[$3]::bigint[]) d", [TO, MC, T2])).rows?.[0]?.d;
+  const tg = (await c.query("select user_id from tg_mod_bulk_targets where bulk_id = $1 order by user_id", [draft?.id])).rows.map((r) => Number(r.user_id));
+  check("mass ban targets known members only, without owner, excluded admins and left users",
+    draft?.total === 3 && tg.join() === [T1, 9100000011, 9100000012].sort((a, b) => a - b).join(), JSON.stringify({ total: draft?.total, tg }));
+  check("mass ban preview has names", draft?.preview?.includes("Новичок") && draft?.preview?.includes("@nick12"));
+  const list = (await svc("select public.tg_mod_bulk_create($1, $2, 'kick', 'list', array[$3, 9100000099, $1]::bigint[], null) d", [TO, MC, T1])).rows?.[0]?.d;
+  check("an id list excludes the owner", list?.total === 2);
+  check("a new draft cancels the previous one", (await c.query("select status from tg_mod_bulk where id = $1", [draft.id])).rows[0].status === "cancelled");
+
+  const run = (await svc("select public.tg_mod_bulk_create($1, $2, 'ban', 'all', null, null) d", [TO, MC])).rows[0].d;
+  await c.query("update tg_mod_bulk set status = 'running' where id = $1", [run.id]);
+  const bres = [{ user_id: T1, status: "ok" }, { user_id: 9100000011, status: "already" }, { user_id: T2, status: "failed", error: "x" }];
+  await svc("select public.tg_mod_bulk_report($1, $2)", [run.id, JSON.stringify(bres)]);
+  const bagain = (await svc("select public.tg_mod_bulk_report($1, $2) r", [run.id, JSON.stringify(bres)])).rows[0].r;
+  check("batch results are counted once even if reported twice", bagain.ok === 1 && bagain.failed === 1 && bagain.skipped === 1 && bagain.status === "running");
+  const fin = (await svc("select public.tg_mod_bulk_report($1, $2) r", [run.id, JSON.stringify([{ user_id: 9100000012, status: "ok" }])])).rows[0].r;
+  check("the operation finishes when nothing is pending", fin.status === "done" && fin.ok === 2);
+  check("banned members are marked in the member list", (await c.query("select status from tg_chat_members where chat_id = $1 and telegram_id = $2", [MC, T1])).rows[0].status === "kicked");
+  check("successful bans are logged with the operation id", (await c.query("select count(*)::int n from tg_mod_actions where bulk_id = $1 and status = 'ok'", [run.id])).rows[0].n === 2);
+  check("only the initiator can undo", String((await svc("select public.tg_mod_bulk_undo($1, $2)", [T1, run.id])).error).includes("forbidden"));
+  const undo = (await svc("select public.tg_mod_bulk_undo($1, $2) u", [TO, run.id])).rows?.[0]?.u;
+  const undoT = (await c.query("select user_id from tg_mod_bulk_targets where bulk_id = $1 order by user_id", [undo?.id])).rows.map((r) => Number(r.user_id));
+  check("undo unbans only users this operation banned (not the already-banned one)", undo?.total === 2 && undoT.join() === [T1, 9100000012].sort((a, b) => a - b).join());
+  check("an undo cannot be created twice", String((await svc("select public.tg_mod_bulk_undo($1, $2)", [TO, run.id])).error).includes("already_exists"));
+
+  await c.query("insert into tg_mod_actions (chat_id, target_id, moderator_id, action, status, expires_at) values ($1, $2, $3, 'mute', 'ok', now() + interval '1 hour'), ($1, 9100000011, $3, 'ban', 'ok', null), ($1, 9100000011, $3, 'unban', 'ok', null), ($1, 9100000012, $3, 'mute', 'ok', now() - interval '1 minute')", [MC, T2, TO]);
+  const active = (await svc("select public.tg_mod_active($1) a", [MC])).rows[0].a;
+  check("active punishments: latest action wins, expired ones drop out", active.items.some((x) => Number(x.user_id) === T2 && x.action === "mute") && !active.items.some((x) => Number(x.user_id) === 9100000011) && !active.items.some((x) => Number(x.user_id) === 9100000012 && x.action === "mute"));
+  const st = (await svc("select public.tg_mod_stats($1) s", [MC])).rows[0].s;
+  check("moderation stats", st.bans >= 3 && st.mutes >= 2 && st.bulk === 1);
+  await c.query("insert into tg_mod_warnings (chat_id, user_id, moderator_id, reason) values ($1, $2, $3, 'a'), ($1, $2, $3, 'b')", [MC, T2, TO]);
+  check("warnings list per user", (await svc("select public.tg_mod_warn_list($1) w", [MC])).rows[0].w[0]?.count === 2);
+  await c.query("insert into tg_mod_autodelete (chat_id, message_id, delete_at) values ($1, 1, now() - interval '1 second'), ($1, 2, now() + interval '1 hour')", [MC]);
+  const due = (await svc("select * from public.tg_mod_autodelete_due()")).rows ?? [];
+  check("only due notices are handed out, once", due.filter((r) => Number(r.chat_id) === MC).length === 1 && (await svc("select * from public.tg_mod_autodelete_due()")).rows.filter((r) => Number(r.chat_id) === MC).length === 0);
+  for (const role of ["anon", "authenticated"]) {
+    check(`${role} cannot use moderation functions or tables`,
+      Boolean((await as(role, "select public.tg_mod_bulk_create($1, $2, 'ban', 'all', null, null)", [TO, MC], ownerUid)).error) &&
+      Boolean((await as(role, "select * from tg_mod_actions limit 1", [], ownerUid)).error) &&
+      Boolean((await as(role, "select public.tg_mod_is_owner($1)", [TO], ownerUid)).error));
+  }
+  const gameAfter = (await c.query("select count(*)::int n, coalesce(sum(cash), 0)::text s from wallets")).rows[0];
+  check("moderation changes no game balances or game bans",
+    gameAfter.n === gameBefore.n && gameAfter.s === gameBefore.s && (await c.query("select count(*)::int n from profiles where status = 'blocked'")).rows[0].n === banBefore);
 } finally {
   await c.query("rollback");
   await c.end();

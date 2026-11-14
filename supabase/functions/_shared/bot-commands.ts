@@ -100,6 +100,7 @@ const WORDS: Record<string, string> = {
   // English names behind the slash commands in the Telegram menu (/tasks, /mafia, ...).
   "tasks": "quests", "invite": "invite", "play": "play", "mafia": "mafia", "spy": "spy", "crocodile": "crocodile",
   "меню": "menu", "menu": "menu", "лотерея": "lottery", "lottery": "lottery", "раздача": "giveaway", "giveaway": "giveaway",
+  "модерация": "moderation", "moderation": "moderation",
 };
 
 /**
