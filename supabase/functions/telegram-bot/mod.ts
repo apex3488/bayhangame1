@@ -97,6 +97,15 @@ export async function onGroupMessage(ctx: Ctx, msg: any, owner: boolean): Promis
       return true;
     }
     case "clean": {
+      if (cmd.all) {
+        const known = await knownCount(chatId);
+        await delMsg(chatId, msg.message_id);
+        if (!known) return await notice(chatId, "🧹 Бот не знает ни одного сообщения младше 48 часов — удалять нечего.", 10), true;
+        const sid = await session(me, chatId, "clean", { n: "all" });
+        await notice(chatId, `⚠️ <b>Удалить все сообщения?</b>\nБот удалит все ${known} сообщений, которые видел за последние 48 часов. Отменить это нельзя.\nКнопки действуют 2 минуты и только для владельца.`, 120,
+          [[b("✅ Удалить все", `md:cy:${sid}`), b("✖️ Отмена", `md:cx:${sid}`)]]);
+        return true;
+      }
       const n = cmd.count!;
       if (n > M.CONFIRM_CLEAN_OVER) {
         const sid = await session(me, chatId, "clean", { n });
@@ -248,18 +257,31 @@ async function slowText(chatId: number, arg?: string) {
     (arg ? `\n\nКоманда «слоумод ${esc(arg)}» поэтому ничего не меняет.` : "");
 }
 
-/** Deletes up to n of the newest messages the bot has seen in the last 48 hours. */
-async function runCleanup(chatId: number, n: number, me: number) {
-  const since = new Date(Date.now() - 47.5 * 3600e3).toISOString();
-  const { data } = await db().from("tg_mod_messages").select("message_id").eq("chat_id", chatId).gte("observed_at", since)
-    .order("message_id", { ascending: false }).limit(n);
-  const ids = (data ?? []).map((r) => Number(r.message_id));
+const cleanSince = () => new Date(Date.now() - 47.5 * 3600e3).toISOString();
+async function knownCount(chatId: number) {
+  const { count } = await db().from("tg_mod_messages").select("message_id", { count: "exact", head: true }).eq("chat_id", chatId).gte("observed_at", cleanSince());
+  return count ?? 0;
+}
+
+/** Deletes up to n (or "all") of the newest messages the bot has seen in the last 48 hours. */
+async function runCleanup(chatId: number, n: number | "all", me: number) {
+  const limit = n === "all" ? M.MAX_CLEAN_ALL : n;
+  const ids: number[] = [];
+  // The API returns at most 1000 rows per request, so read in pages.
+  for (let from = 0; from < limit; from += 1000) {
+    const { data } = await db().from("tg_mod_messages").select("message_id").eq("chat_id", chatId).gte("observed_at", cleanSince())
+      .order("message_id", { ascending: false }).range(from, Math.min(limit, from + 1000) - 1);
+    ids.push(...(data ?? []).map((r) => Number(r.message_id)));
+    if ((data?.length ?? 0) < 1000) break;
+  }
   const r = await M.deleteMany(api, chatId, ids);
   for (let i = 0; i < ids.length; i += 200) await db().from("tg_mod_messages").delete().eq("chat_id", chatId).in("message_id", ids.slice(i, i + 200));
   await log({ chat_id: chatId, moderator_id: me, action: "cleanup", count: r.deleted, status: r.failed && !r.deleted ? "failed" : "ok" });
-  return `🧹 <b>Очистка</b>: запрошено ${n}, известно боту ${ids.length}. ` +
+  const more = n === "all" && ids.length >= M.MAX_CLEAN_ALL ? await knownCount(chatId) : 0;
+  return `🧹 <b>Очистка</b>: ${n === "all" ? "все сообщения" : `запрошено ${n}`}, известно боту ${ids.length}. ` +
     `${r.exact ? `Удалено ${r.deleted}` : `Удалено до ${r.deleted}`}${r.failed ? `, не удалось ${r.failed}` : ""}.` +
-    (ids.length < n ? `\nБот удаляет только сообщения, которые сам видел за последние 48 часов.` : "") +
+    (more ? `\nОсталось ещё ${more} — повторите команду.` : "") +
+    (n === "all" || ids.length < n ? `\nБот удаляет только сообщения, которые сам видел за последние 48 часов: более старые Telegram удалять не даёт, а историю до добавления бота он не видит.` : "") +
     (!r.exact && ids.length ? `\nTelegram удаляет пачками и не сообщает, какие сообщения уже были удалены.` : "");
 }
 
@@ -655,12 +677,20 @@ export async function button(ctx: Ctx, data: string, messageId: number): Promise
         await needChat("delete");
         await show(ctx, {
           text: `🧹 <b>Очистка сообщений</b>\n\nБот удаляет самые новые сообщения, которые сам видел за последние 48 часов (старше Telegram удалять не даёт). В группе: «очистить 50».`,
-          kb: [[b("10", `md:cn:${chatId}:10`), b("50", `md:cn:${chatId}:50`), b("100", `md:cn:${chatId}:100`), b("500", `md:cn:${chatId}:500`)], toGroup(chatId)],
+          kb: [[b("10", `md:cn:${chatId}:10`), b("50", `md:cn:${chatId}:50`), b("100", `md:cn:${chatId}:100`), b("500", `md:cn:${chatId}:500`)],
+            [b("🗑 Удалить все сообщения", `md:cn:${chatId}:all`)], toGroup(chatId)],
         }, messageId);
         return null;
       }
       case "cn": {
         await needChat("delete");
+        if (a2 === "all") {
+          const known = await knownCount(chatId);
+          if (!known) return "Бот не знает ни одного сообщения младше 48 часов.";
+          const sid = await session(me, chatId, "clean", { n: "all" });
+          await show(ctx, { text: `⚠️ <b>Удалить все сообщения?</b>\nБот удалит все ${known} сообщений группы, которые видел за последние 48 часов. Отменить это нельзя.\nПодтверждение действует 2 минуты.`, kb: [[b("✅ Удалить все", `md:cy:${sid}`), b("✖️ Отмена", `md:cx:${sid}`)]] }, messageId);
+          return null;
+        }
         const n = Math.min(M.MAX_CLEAN, Math.max(1, Number(a2) || 0));
         if (n <= M.CONFIRM_CLEAN_OVER) {
           await show(ctx, { text: await runCleanup(chatId, n, me), kb: [toGroup(chatId)] }, messageId);
@@ -681,12 +711,20 @@ export async function button(ctx: Ctx, data: string, messageId: number): Promise
         }
         const denied = await M.authorize(api, cid, me, await botId(), "delete");
         if (denied) return denied;
-        const text = await runCleanup(cid, Number(sess.data.n), me);
-        if (ctx.isPrivate) await show(ctx, { text, kb: [toGroup(cid)] }, messageId);
-        else {
-          await delMsg(ctx.chat.id, messageId);
-          await notice(cid, text, 15);
+        const n: number | "all" = sess.data.n === "all" ? "all" : Number(sess.data.n);
+        const finish = async () => {
+          const text = await runCleanup(cid, n, me);
+          if (ctx.isPrivate) await show(ctx, { text, kb: [toGroup(cid)] }, messageId);
+          else await notice(cid, text, 20);
+        };
+        if (!ctx.isPrivate) await delMsg(ctx.chat.id, messageId);
+        if (n === "all") {
+          // Thousands of messages take longer than a button answer may wait: run in the background.
+          if (ctx.isPrivate) await show(ctx, { text: "⏳ Удаляю сообщения…", kb: [] }, messageId);
+          waitUntil(finish().catch((e) => console.error("cleanup:", e instanceof Error ? e.message : "unknown")));
+          return "Удаляю…";
         }
+        await finish();
         return null;
       }
       case "bx": {

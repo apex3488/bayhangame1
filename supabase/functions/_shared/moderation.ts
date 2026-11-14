@@ -17,6 +17,8 @@ export const MIN_SECONDS = 30;
 export const MAX_SECONDS = 366 * 86400;
 export const MAX_CLEAN = 500;
 export const CONFIRM_CLEAN_OVER = 50;
+/** Upper bound for «удалить все сообщения» in one run. */
+export const MAX_CLEAN_ALL = 20000;
 /** Values Telegram offers for slow mode (set in the group's settings; the Bot API cannot change it). */
 export const SLOW_VALUES = [0, 10, 30, 60, 300, 900, 3600];
 /** Telegram's own accounts: service notifications, anonymous admins, channel posts. */
@@ -33,6 +35,8 @@ export interface ModCmd {
   /** "разбан 123456789": a target given by Telegram id instead of a reply. */
   targetId?: number;
   count?: number;
+  /** «удалить все сообщения»: every message the bot knows (always confirmed). */
+  all?: boolean;
   arg?: string;
   error?: string;
 }
@@ -89,6 +93,7 @@ export function parseMod(raw: string, botUsername = ""): ModCmd | null {
   if (low[0] === "слоумод" || (low[0] === "медленный" && low[1] === "режим")) {
     return { op: "slow", arg: low[0] === "слоумод" ? low[1] ?? "" : low[2] ?? "" };
   }
+  if (["удалить все сообщения", "удалить все", "очистить все", "очистить чат", "очистить все сообщения"].includes(t)) return { op: "clean", all: true };
   if (low[0] === "очистить") {
     if (low.length > 2) return null;
     const n = Number(low[1]);

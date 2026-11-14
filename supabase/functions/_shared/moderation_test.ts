@@ -38,6 +38,11 @@ Deno.test("parse: Russian commands, durations, reasons, ids", () => {
   assertEquals(M.parseMod("Открыть чат")?.op, "unlock");
   assertEquals(M.parseMod("очистить 50"), { op: "clean", count: 50 });
   assertEquals(M.parseMod("слоумод 10с"), { op: "slow", arg: "10с" });
+  assertEquals(M.parseMod("Удалить все сообщения"), { op: "clean", all: true });
+  assertEquals(M.parseMod("удалить всё"), { op: "clean", all: true });
+  assertEquals(M.parseMod("очистить всё"), { op: "clean", all: true });
+  assertEquals(M.parseMod("очистить чат"), { op: "clean", all: true });
+  assertEquals(M.parseMod("удалить все сообщения про игру"), null);
   assertEquals(M.parseMod("/moderation@BayhanGame2_bot", "BayhanGame2_bot")?.op, "panel");
   assertEquals(M.parseMod("модерация")?.op, "panel");
   // Not commands.
